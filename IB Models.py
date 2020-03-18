@@ -36,6 +36,11 @@ from sklearn.preprocessing import KBinsDiscretizer, scale
 import warnings
 import sklearn.exceptions
 
+
+# Future
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+# Convergence 
 warnings.filterwarnings("ignore", category=sklearn.exceptions.ConvergenceWarning)
 
 
@@ -76,19 +81,19 @@ prot_var = 'Protected_Group'  # Name of the protected group column
 label = 'UNIQUE_ID'  # Name of the column providing row labels (e.g. Name, ID number, Client Number)
 
 model_type = 'RF'  # Type of model to be run (DT, RF, GB, ADA, MLP, SVC)
-grid_search = 0  # Control Switch for hyperparameter grid search
+grid_search = 1  # Control Switch for hyperparameter grid search
 hp_grid = {'bootstrap': [True],
            'max_depth': [20],
-           'max_features': ['auto'],
+           'max_features': ['sqrt'],
            'min_samples_split': [4],
            'min_samples_leaf': [4],
-           'n_estimators': [400]}  # Dictionary with hyperparameters to use in grid search
+           'n_estimators': [1000]}  # Dictionary with hyperparameters to use in grid search
 
-undersample = 1  # Control Switch for Down Sampling
+undersample = 0  # Control Switch for Down Sampling
 us_type = 3  # Under Sampling type (1:RuS, 2:Near-Miss, 3:Cluster Centroids)
 oversampling = 0  # Control Switch for Up Sampling
 os_type = 1  # Over Sampling type (1:RoS, 2:SMOTE, 3:ADASYN)
-cross_val = 0  # Control Switch for CV
+cross_val = 1  # Control Switch for CV
 norm_target = 0  # Normalize target switch
 norm_features = 0  # Normalize features switch
 binning = 0  # Control Switch for Bin Target
