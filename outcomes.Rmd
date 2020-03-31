@@ -1,0 +1,216 @@
+---
+title: "Exploring Outcomes"
+author: "Goran Kuljanin"
+date: "March 5, 2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Libraries
+
+Load libraries to perform analyses.
+
+```{r libraries}
+### here for project directory navigation
+library(here)
+
+### tidyverse for data manipulation and plotting
+library(tidyverse)
+
+### psych for measure evaluation
+library(psych)
+```
+
+## Load Data
+
+Load data to investigate.
+
+```{r data}
+### training data
+train <- read_csv(here("data", "training_data.csv"))
+  
+### development data
+dev <- read_csv(here("data", "development_data.csv"))
+```
+
+## Examine Outcomes
+
+Examine the three outcomes of interest in the training data: 
+
+1. **High_Performer**
+2. **Retained**
+3. **Protected_Group**
+
+```{r outcomes}
+#### counts
+### High_Performer by Retained by Protected_Group
+## select data
+train %>%
+  ## filter by High_Performer
+  filter(!is.na(High_Performer)) %>%
+  ## count by all three outcome variables
+  count(High_Performer, Retained, Protected_Group) %>%
+  ## compute proportion
+  mutate(prop = n/sum(n))
+
+
+### descriptive statistics by Protected_Group
+## outcome
+describeBy(train[,c(2:7,9)], train$Protected_Group, digits = 2, mat = TRUE)
+
+## effect size
+cohen.d(train[,c(2:7,9)], train$Protected_Group)
+
+### High_Performer by Retained by Protected_Group
+## select data
+train %>%
+  ## count by all three outcome variables
+  count(High_Performer, Overall_Rating)
+```
+
+## Split Data
+
+Split original training data into two new datasets: training and testing. 
+
+```{r dataSplit}
+### extract only individuals with High_Performer scores
+## choose data
+hp_comp <- train %>%
+  ## select outcome variables and personality items
+  select(High_Performer, Retained, Protected_Group, PScale01_Q1:PScale13_Q5) %>%
+  ## filter for High_Performer
+  filter(!is.na(High_Performer))
+
+### create separate data frames for training and testing
+## random selection of individuals
+ndx <- sample(nrow(hp_comp), round(0.70*nrow(hp_comp)))
+
+## training data frame
+hp_comp_train <- hp_comp[ndx, ]
+
+## testing data frame
+hp_comp_test <- hp_comp[-ndx, ]
+```
+
+## Build Features
+
+Perform a factor analysis on the personality items to create features out of them.
+
+```{r pers13}
+### factor analysis
+fa_res <- fa(hp_comp_train[,4:58], nfactors = 13)
+
+### add factor scores to data
+## training data
+hp_comp_train <- hp_comp_train %>%
+  ## combine scores
+  bind_cols(as_tibble(fa_res$scores))
+
+## testing data
+hp_comp_test <- hp_comp_test %>%
+  ## combine scores
+  bind_cols(as_tibble(
+    predict.psych(fa_res, data = hp_comp_test[, 4:58], 
+                  old.data = hp_comp_train[,4:58])))
+```
+
+## Build Model
+
+Logistic regression model for each outcome.
+
+```{r}
+### models
+## High_Performer
+hp_train_mod <- glm(High_Performer ~ MR1 + MR2 + MR3 + MR4 + 
+    MR5 + MR6 + MR7 + MR8 + MR9 + MR10 + MR11 + MR12 + MR13,
+    data = hp_comp_train, family = "binomial")
+
+## Retained
+retain_train_mod <- glm(Retained ~ MR1 + MR2 + MR3 + MR4 + 
+    MR5 + MR6 + MR7 + MR8 + MR9 + MR10 + MR11 + MR12 + MR13,
+    data = hp_comp_train, family = "binomial")
+
+## Protected_Group
+protect_train_mod <- glm(Protected_Group ~ MR1 + MR2 + MR3 + MR4 + 
+    MR5 + MR6 + MR7 + MR8 + MR9 + MR10 + MR11 + MR12 + MR13,
+    data = hp_comp_train, family = "binomial")
+```
+
+## Make Predictions
+
+Make predictions on the test dataset.
+
+```{r}
+### predictions
+## select test data
+hp_comp_test <- hp_comp_test %>%
+  ## compute variables
+  mutate(High_Performer_Prob = predict(hp_train_mod, hp_comp_test, type = "response"),
+         Retained_Prob = predict(retain_train_mod, hp_comp_test, type = "response"),
+         Protected_Group_Prob = predict(protect_train_mod, hp_comp_test, type = "response"))
+```
+
+## Evaluate Score
+
+Evaluate score of predictions.
+
+```{r}
+### filter for non-missing predictions
+hp_comp_test_nomiss <- hp_comp_test %>%
+  ## select variables
+  select(High_Performer, High_Performer_Prob,
+         Retained, Retained_Prob,
+         Protected_Group, Protected_Group_Prob) %>%
+  ## filter for non-missing
+  filter(!is.na(High_Performer_Prob))
+
+### select top-half of performers
+hp_comp_test_nomiss <- hp_comp_test_nomiss %>%
+  ## arrange by High_Performer_Prob
+  arrange(desc(High_Performer_Prob)) %>%
+  ## compute variable
+  mutate(hire = if_else(1:nrow(hp_comp_test_nomiss) < round(0.5*nrow(hp_comp_test_nomiss)),
+                        1, 0))
+
+### model performance
+## accuracy true High_Performer
+hp_perf <- hp_comp_test_nomiss %>%
+  filter(High_Performer == 1) %>%
+  count(hire == 1)
+
+## accuracy true Retained
+retain_perf <- hp_comp_test_nomiss %>%
+  filter(Retained == 1) %>%
+  count(hire == 1)
+
+## accuracy High_Performer and Retained
+hp_retain_perf <- hp_comp_test_nomiss %>%
+  filter(High_Performer == 1, Retained == 1) %>%
+  count(hire == 1)
+
+## non-protected group selection 
+non_protect_perf <- hp_comp_test_nomiss %>%
+  filter(Protected_Group == 0) %>%
+  count(hire == 1)
+
+## protected group selection
+protect_perf <- hp_comp_test_nomiss %>%
+  filter(Protected_Group == 1) %>%
+  count(hire == 1)
+
+## adverse impact ratio
+air <- (protect_perf$n[2]/sum(protect_perf$n))/
+  (non_protect_perf$n[2]/sum(non_protect_perf$n))
+
+### final score
+hp_perf$n[2]/sum(hp_perf$n)*25 + 
+  retain_perf$n[2]/sum(retain_perf$n)*25 +
+  hp_retain_perf$n[2]/sum(hp_retain_perf$n)*50 -
+  abs(1 - air)*100
+```
+
