@@ -624,33 +624,33 @@ final_predictions["Hire"] = final_predictions[1].apply(lambda x: hire(x, median)
 ##################################
 
 # # Model Configuration
-mc = {'modelID': modelid,
-      'modelType': model_type,
-      'modelTarget': target_var,
-      'undersampleFlag': undersample,
-      'undersampleType': us_type,
-      'oversampleFlag': oversampling,
-      'oversampleType': os_type,
-      'lvFilterFlag': lv_filter,
-      'featureSelect': feat_select,
-      'fsType': fs_type}
-model_config = pd.DataFrame(mc, index=[0])
-model_config.to_sql('modelConfiguration', engine, if_exists='append', index=False, schema='ax')
-
-# Model Score
-fs = {'modelID': modelid,
-      'Percentage_of_true_top_performers_hired': HP_Hire_Percentage,
-      'Percentage_of_true_retained_hired': R_Hire_Percentage,
-      'Percentage_of_true_retained_top_performers_hired': H_Hire_Percentage,
-      'Adverse_impact_ratio': adverse_impact,
-      'Final_score': score}
-final_scores = pd.DataFrame(fs, index=[0])
-final_scores.to_sql('modelPerformance', engine, if_exists='append', index=False, schema='ax')
-
-# Model Predictions
-final_predictions.insert(0, "modelID", modelid)
-final_predictions.to_sql('modelPredictions', engine, if_exists='append', index=False, schema='ax')
-
-# Classification Details
-hp_train_pred.to_sql('highPerformerClassifications', engine, if_exists='append', index=False, schema='ax')
-train_pred.to_sql('retentionClassifications', engine, if_exists='append', index=False, schema='ax')
+# mc = {'modelID': modelid,
+#       'modelType': model_type,
+#       'modelTarget': target_var,
+#       'undersampleFlag': undersample,
+#       'undersampleType': us_type,
+#       'oversampleFlag': oversampling,
+#       'oversampleType': os_type,
+#       'lvFilterFlag': lv_filter,
+#       'featureSelect': feat_select,
+#       'fsType': fs_type}
+# model_config = pd.DataFrame(mc, index=[0])
+# model_config.to_sql('modelConfiguration', engine, if_exists='append', index=False, schema='ax')
+#
+# # Model Score
+# fs = {'modelID': modelid,
+#       'Percentage_of_true_top_performers_hired': HP_Hire_Percentage,
+#       'Percentage_of_true_retained_hired': R_Hire_Percentage,
+#       'Percentage_of_true_retained_top_performers_hired': H_Hire_Percentage,
+#       'Adverse_impact_ratio': adverse_impact,
+#       'Final_score': score}
+# final_scores = pd.DataFrame(fs, index=[0])
+# final_scores.to_sql('modelPerformance', engine, if_exists='append', index=False, schema='ax')
+#
+# # Model Predictions
+# final_predictions.insert(0, "modelID", modelid)
+# final_predictions.to_sql('modelPredictions', engine, if_exists='append', index=False, schema='ax')
+#
+# # Classification Details
+# hp_train_pred.to_sql('highPerformerClassifications', engine, if_exists='append', index=False, schema='ax')
+# train_pred.to_sql('retentionClassifications', engine, if_exists='append', index=False, schema='ax')
