@@ -71,7 +71,7 @@ cursor = conn.cursor()
 ##################################
 modelid = datetime.datetime.fromtimestamp(datetime.datetime.now().timestamp())  # Unique ID for a given model run
 
-train_filename = 'TrainingData'  # Name of the file used to train the model
+train_filename = 'updatedTrainingData'  # Name of the file used to train the model
 test_filename = 'DevelopmentData'  # Name of the file used to test the model
 first_feat_index = 9  # Column index of the first feature
 feat_start = 0
@@ -186,10 +186,18 @@ prot_group = train_data[prot_var]
 high_perf = train_data["High_Performer"].dropna()
 retained = train_data["Retained"]
 test_labels = test_data[label]
-header = list(train_data.columns)[first_feat_index:last_feat_index]
-features = train_data[header].fillna(train_data[header].mean())
+
+exclusion_list = ['split']
+
+feature_set = list(train_data.columns)[first_feat_index:last_feat_index]
+
+for x1 in exclusion_list:
+    if x1.lower() in feature_set:
+        feature_set.remove(x1.lower())
+header = feature_set
+df = train_data[header].fillna(train_data[header].mean())
+data_np = df.to_numpy()
 target_np = target.to_numpy()
-data_np = features.to_numpy()
 
 ##################################
 # Preprocess Data
