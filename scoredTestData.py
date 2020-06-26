@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+from sklearn.impute import KNNImputer
 
 pd.set_option('mode.chained_assignment', None)
 
@@ -11,6 +13,8 @@ def scenarioScoring(scenario, raw):
 
 
 def scorer(x, best, worst):
+    if np.isnan(x):
+        return np.nan
     if x == best:
         return 1
     if x == worst:
@@ -146,6 +150,11 @@ PScaleScores = pd.concat([scale1['average_S1'], scale2['average_S2'], scale3['av
                           scale9['average_S9'], scale10['average_S10'], scale11['average_S11'], scale12['average_S12'],
                           scale13['average_S13']], axis=1)
 
-final = ids.join([bioData, SJTimes, SJMostScores, SJLeastScores, scenarioTimes, scenarioScores, PScaleScores])
+feature_vectors = bioData.join([SJTimes, SJMostScores, SJLeastScores,
+                                scenarioTimes, scenarioScores, PScaleScores])
+imputer = KNNImputer(n_neighbors=7)
+feature_vectors_filled = pd.DataFrame(imputer.fit_transform(feature_vectors), columns=list(feature_vectors.columns))
+feature_vectors_filled = pd.DataFrame(feature_vectors_filled, columns=list(feature_vectors.columns))
+final = ids.join(feature_vectors_filled)
 
 final.to_csv('Data/scoredTrainingData.csv', index=False)
