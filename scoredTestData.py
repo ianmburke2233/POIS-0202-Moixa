@@ -37,7 +37,7 @@ def judgementScoring(sjItem, raw):
 x = pd.read_csv("C:/Users/Ian/Box Sync/Client/Baker Tilly/201901 ProdDev Initiative/"
                 "2 - Work in Process/POIS-0202-Moixa/Data/TrainingData.csv")
 
-ids = x[list(x.columns)[:8]]
+ids = x[list(x.columns)[:9]]
 SJTimes = x.filter(regex="SJ_Time.*", axis=1)
 scenarioTimes = x.filter(regex="Scenario.*._Time.*", axis=1)
 bioData = x.filter(regex="Bio.*", axis=1)
