@@ -157,6 +157,10 @@ imputer = KNNImputer(n_neighbors=7)
 feature_vectors_filled = pd.DataFrame(imputer.fit_transform(feature_vectors), columns=list(feature_vectors.columns))
 feature_vectors_filled = pd.DataFrame(feature_vectors_filled, columns=list(feature_vectors.columns))
 final = ids.join(feature_vectors_filled)
+i = 1
+while i < 10:
+    final['SJ_Total_{}_score'.format(i)] = final['SJ_Most_{}_score'.format(i)] + final['SJ_Least_{}_score'.format(i)]
+    i += 1
 
 
 def hasPerformance(q):

@@ -48,30 +48,30 @@ warnings.filterwarnings("ignore", category=sklearn.exceptions.ConvergenceWarning
 # Database Connection
 ##################################
 
-connStr = (r'Driver={ODBC Driver 13 for SQL Server};'
-           r'Server=tcp:axiom-siop-2020.database.windows.net,1433;'
-           r'Database=SIOP 2020;'
-           r'Uid=ian.burke;'
-           r'Pwd=@zIFdX4#jey1;'
-           r'Encrypt=yes;'
-           r'TrustServerCertificate=no;')
-quoted = quote_plus(connStr)
-new_con = 'mssql+pyodbc:///?odbc_connect={}'.format(quoted)
-engine = sqla.create_engine(new_con, fast_executemany = True)
-conn = odbc.connect("Driver={ODBC Driver 13 for SQL Server};"
-                    "Server=tcp:axiom-siop-2020.database.windows.net,1433;"
-                    "Database=SIOP 2020;"
-                    "Uid=ian.burke;"
-                    "Pwd=@zIFdX4#jey1;"
-                    "Encrypt=yes;")
-cursor = conn.cursor()
+# connStr = (r'Driver={ODBC Driver 13 for SQL Server};'
+#            r'Server=tcp:axiom-siop-2020.database.windows.net,1433;'
+#            r'Database=SIOP 2020;'
+#            r'Uid=ian.burke;'
+#            r'Pwd=@zIFdX4#jey1;'
+#            r'Encrypt=yes;'
+#            r'TrustServerCertificate=no;')
+# quoted = quote_plus(connStr)
+# new_con = 'mssql+pyodbc:///?odbc_connect={}'.format(quoted)
+# engine = sqla.create_engine(new_con, fast_executemany = True)
+# conn = odbc.connect("Driver={ODBC Driver 13 for SQL Server};"
+#                     "Server=tcp:axiom-siop-2020.database.windows.net,1433;"
+#                     "Database=SIOP 2020;"
+#                     "Uid=ian.burke;"
+#                     "Pwd=@zIFdX4#jey1;"
+#                     "Encrypt=yes;")
+# cursor = conn.cursor()
 
 ##################################
 # Globals
 ##################################
 modelid = datetime.datetime.fromtimestamp(datetime.datetime.now().timestamp())  # Unique ID for a given model run
 
-train_filename = 'updatedTrainingData'  # Name of the file used to train the model
+train_filename = 'scoredTrainingData'  # Name of the file used to train the model
 test_filename = 'DevelopmentData'  # Name of the file used to test the model
 first_feat_index = 9  # Column index of the first feature
 feat_start = 0
@@ -81,7 +81,7 @@ prot_var = 'Protected_Group'  # Name of the protected group column
 label = 'UNIQUE_ID'  # Name of the column providing row labels (e.g. Name, ID number, Client Number)
 
 model_type = 'RF'  # Type of model to be run (DT, RF, GB, ADA, MLP, SVC)
-grid_search = 1  # Control Switch for hyperparameter grid search
+grid_search = 0  # Control Switch for hyperparameter grid search
 hp_grid = {'bootstrap': [True],
            'max_depth': [20],
            'max_features': ['sqrt'],
@@ -93,7 +93,7 @@ undersample = 0  # Control Switch for Down Sampling
 us_type = 3  # Under Sampling type (1:RuS, 2:Near-Miss, 3:Cluster Centroids)
 oversampling = 0  # Control Switch for Up Sampling
 os_type = 1  # Over Sampling type (1:RoS, 2:SMOTE, 3:ADASYN)
-cross_val = 1  # Control Switch for CV
+cross_val = 0  # Control Switch for CV
 norm_target = 0  # Normalize target switch
 norm_features = 0  # Normalize features switch
 binning = 0  # Control Switch for Bin Target
@@ -187,15 +187,29 @@ high_perf = train_data["High_Performer"].dropna()
 retained = train_data["Retained"]
 test_labels = test_data[label]
 
-exclusion_list = ['split']
+exclusion_list = ['split', 'SJ_Time_1', 'SJ_Time_2', 'SJ_Time_3', 'SJ_Time_4', 'SJ_Time_5',
+                  'SJ_Time_6', 'SJ_Time_7', 'SJ_Time_8', 'SJ_Time_9', 'split', 'SJ_Most_1_score',
+                  'SJ_Most_2_score', 'SJ_Most_3_score', 'SJ_Most_4_score', 'SJ_Most_5_score',
+                  'SJ_Most_6_score', 'SJ_Most_7_score', 'SJ_Most_8_score', 'SJ_Most_9_score',
+                  'SJ_Least_1_score', 'SJ_Least_2_score', 'SJ_Least_3_score', 'SJ_Least_4_score', 'SJ_Least_5_score',
+                  'SJ_Least_6_score', 'SJ_Least_7_score', 'SJ_Least_8_score', 'SJ_Least_9_score', 'Scenario1_Time',
+                  'Scenario2_Time']
+
+# exclusion_list = ['split', 'SJ_Most_1_score', 'SJ_Most_2_score', 'SJ_Most_3_score', 'SJ_Most_4_score',
+#                   'SJ_Most_5_score', 'SJ_Most_6_score', 'SJ_Most_7_score', 'SJ_Most_8_score', 'SJ_Most_9_score',
+#                   'SJ_Least_1_score', 'SJ_Least_2_score', 'SJ_Least_3_score', 'SJ_Least_4_score', 'SJ_Least_5_score',
+#                   'SJ_Least_6_score', 'SJ_Least_7_score', 'SJ_Least_8_score', 'SJ_Least_9_score']
+
+# exclusion_list = ['split', 'SJ_Time_1', 'SJ_Time_2', 'SJ_Time_3', 'SJ_Time_4', 'SJ_Time_5', 'SJ_Time_6',
+#                   'SJ_Time_7', 'SJ_Time_8', 'SJ_Time_9', 'Scenario1_Time', 'Scenario2_Time']
 
 feature_set = list(train_data.columns)[first_feat_index:last_feat_index]
 
 for x1 in exclusion_list:
-    if x1.lower() in feature_set:
-        feature_set.remove(x1.lower())
+    if x1 in feature_set:
+        feature_set.remove(x1)
 header = feature_set
-df = train_data[header].fillna(train_data[header].mean())
+df = train_data[header]
 data_np = df.to_numpy()
 target_np = target.to_numpy()
 
@@ -515,117 +529,120 @@ if binning == 0 and cross_val == 1:
 # SIOP Testing Formula
 ##################################
 
+clf.fit(data_train, target_train)
+feature_importance = pd.concat([pd.Series(header), pd.Series(clf.feature_importances_)], axis=1)
+feature_importance = feature_importance.sort_values(by=1, ascending=False)
 
-train_results = pd.DataFrame(clf.predict_proba(data_np))
-train_pred = pd.concat([labels, high_perf, retained, prot_group, train_results], axis=1)
-hybrids = []
-for i2 in range(0, len(train_pred)):
-    if train_pred.iloc[i2]['High_Performer'] == 1 and train_pred.iloc[i2]['Retained'] == 1:
-        hybrids.append(1)
-    else:
-        hybrids.append(0)
-train_pred.insert(3, 'Hybrid', hybrids)
-median = train_pred[1].median()
-train_pred["Hire"] = train_pred[1].apply(lambda x: hire(x, median))
-
-# Retained Classification
-retained_classification = []
-for i in range(0, len(train_pred)):
-    retained = train_pred.iloc[i]["Retained"]
-    h = train_pred.iloc[i]["Hire"]
-    if retained == 1 and h == 1:
-        retained_classification.append('TP')
-    if retained == 0 and h == 0:
-        retained_classification.append('TN')
-    if retained == 1 and h == 0:
-        retained_classification.append('FN')
-    if retained == 0 and h == 1:
-        retained_classification.append('FP')
-train_pred['Retained_Classification'] = retained_classification
-R_TP = len(train_pred[train_pred['Retained_Classification'] == 'TP'])
-R_TN = len(train_pred[train_pred['Retained_Classification'] == 'TN'])
-R_FP = len(train_pred[train_pred['Retained_Classification'] == 'FP'])
-R_FN = len(train_pred[train_pred['Retained_Classification'] == 'FN'])
-R_Hire_Percentage = R_TP / (R_TP + R_FN)
-
-# High Performance Classification
-hp_train_pred = train_pred[train_pred['High_Performer'].notnull()]
-high_performance_classification = []
-for i in range(0, len(hp_train_pred)):
-    high_performer = hp_train_pred.iloc[i]["High_Performer"]
-    h = hp_train_pred.iloc[i]["Hire"]
-    if high_performer == 1 and h == 1:
-        high_performance_classification.append('TP')
-    if high_performer == 0 and h == 0:
-        high_performance_classification.append('TN')
-    if high_performer == 1 and h == 0:
-        high_performance_classification.append('FN')
-    if high_performer == 0 and h == 1:
-        high_performance_classification.append('FP')
-hp_train_pred['High_Perf_Classification'] = high_performance_classification
-HP_TP = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'TP'])
-HP_TN = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'TN'])
-HP_FP = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'FP'])
-HP_FN = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'FN'])
-HP_Hire_Percentage = HP_TP / (HP_TP + HP_FN)
-
-# Hybrid Classification
-hybrid_classification = []
-for i in range(0, len(hp_train_pred)):
-    high_performer = hp_train_pred.iloc[i]["High_Performer"]
-    retained = hp_train_pred.iloc[i]["Retained"]
-    if high_performer == 1 and retained == 1:
-        hybrid = 1
-    else:
-        hybrid = 0
-    h = hp_train_pred.iloc[i]["Hire"]
-    if hybrid == 1 and h == 1:
-        hybrid_classification.append('TP')
-    if hybrid == 0 and h == 0:
-        hybrid_classification.append('TN')
-    if hybrid == 1 and h == 0:
-        hybrid_classification.append('FN')
-    if hybrid == 0 and h == 1:
-        hybrid_classification.append('FP')
-hp_train_pred['Hybrid_Classification'] = hybrid_classification
-H_TP = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'TP'])
-H_TN = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'TN'])
-H_FP = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'FP'])
-H_FN = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'FN'])
-H_Hire_Percentage = H_TP / (H_TP + H_FN)
-
-# Adverse Impact Ratio
-prot_hired = len(train_pred.loc[(train_pred['Hire'] == 1) & (train_pred['Protected_Group'] == 1)])
-prot_not_hired = len(train_pred.loc[(train_pred['Hire'] == 0) & (train_pred['Protected_Group'] == 1)])
-non_prot_hired = len(train_pred.loc[(train_pred['Hire'] == 1) & (train_pred['Protected_Group'] == 0)])
-non_prot_not_hired = len(train_pred.loc[(train_pred['Hire'] == 0) & (train_pred['Protected_Group'] == 0)])
-adverse_impact = (prot_hired / (prot_not_hired + prot_hired)) / (non_prot_hired / (non_prot_not_hired + non_prot_hired))
-
-# Final Score
-score = ((HP_Hire_Percentage * 25) + (R_Hire_Percentage * 25) + (H_Hire_Percentage * 50)) - \
-        (abs(1 - adverse_impact) * 100)
-print("High Performers Hired: {0:.2f},"
-      " Retained Hired: {1:.2f},"
-      " Hybrid Hired: {2:.2f}"
-      " Adverse Impact: {3:.2f},"
-      " Score: {4:.2f}%".format(HP_Hire_Percentage,
-                                R_Hire_Percentage,
-                                H_Hire_Percentage,
-                                adverse_impact,
-                                score))
-
-##################################
-# Predict Using Model
-##################################
-
-print('--ML Model Prediction--', '\n')
-
-clf = Model
-clf.fit(data_np, target_np)
-results = pd.DataFrame(clf.predict_proba(test_data[header]))
-final_predictions = pd.concat([test_labels, results], axis=1)
-median = final_predictions[1].median()
-final_predictions["Hire"] = final_predictions[1].apply(lambda x: hire(x, median))
+# train_results = pd.DataFrame(clf.predict_proba(data_np))
+# train_pred = pd.concat([labels, high_perf, retained, prot_group, train_results], axis=1)
+# hybrids = []
+# for i2 in range(0, len(train_pred)):
+#     if train_pred.iloc[i2]['High_Performer'] == 1 and train_pred.iloc[i2]['Retained'] == 1:
+#         hybrids.append(1)
+#     else:
+#         hybrids.append(0)
+# train_pred.insert(3, 'Hybrid', hybrids)
+# median = train_pred[1].median()
+# train_pred["Hire"] = train_pred[1].apply(lambda x: hire(x, median))
+#
+# # Retained Classification
+# retained_classification = []
+# for i in range(0, len(train_pred)):
+#     retained = train_pred.iloc[i]["Retained"]
+#     h = train_pred.iloc[i]["Hire"]
+#     if retained == 1 and h == 1:
+#         retained_classification.append('TP')
+#     if retained == 0 and h == 0:
+#         retained_classification.append('TN')
+#     if retained == 1 and h == 0:
+#         retained_classification.append('FN')
+#     if retained == 0 and h == 1:
+#         retained_classification.append('FP')
+# train_pred['Retained_Classification'] = retained_classification
+# R_TP = len(train_pred[train_pred['Retained_Classification'] == 'TP'])
+# R_TN = len(train_pred[train_pred['Retained_Classification'] == 'TN'])
+# R_FP = len(train_pred[train_pred['Retained_Classification'] == 'FP'])
+# R_FN = len(train_pred[train_pred['Retained_Classification'] == 'FN'])
+# R_Hire_Percentage = R_TP / (R_TP + R_FN)
+#
+# # High Performance Classification
+# hp_train_pred = train_pred[train_pred['High_Performer'].notnull()]
+# high_performance_classification = []
+# for i in range(0, len(hp_train_pred)):
+#     high_performer = hp_train_pred.iloc[i]["High_Performer"]
+#     h = hp_train_pred.iloc[i]["Hire"]
+#     if high_performer == 1 and h == 1:
+#         high_performance_classification.append('TP')
+#     if high_performer == 0 and h == 0:
+#         high_performance_classification.append('TN')
+#     if high_performer == 1 and h == 0:
+#         high_performance_classification.append('FN')
+#     if high_performer == 0 and h == 1:
+#         high_performance_classification.append('FP')
+# hp_train_pred['High_Perf_Classification'] = high_performance_classification
+# HP_TP = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'TP'])
+# HP_TN = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'TN'])
+# HP_FP = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'FP'])
+# HP_FN = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'FN'])
+# HP_Hire_Percentage = HP_TP / (HP_TP + HP_FN)
+#
+# # Hybrid Classification
+# hybrid_classification = []
+# for i in range(0, len(hp_train_pred)):
+#     high_performer = hp_train_pred.iloc[i]["High_Performer"]
+#     retained = hp_train_pred.iloc[i]["Retained"]
+#     if high_performer == 1 and retained == 1:
+#         hybrid = 1
+#     else:
+#         hybrid = 0
+#     h = hp_train_pred.iloc[i]["Hire"]
+#     if hybrid == 1 and h == 1:
+#         hybrid_classification.append('TP')
+#     if hybrid == 0 and h == 0:
+#         hybrid_classification.append('TN')
+#     if hybrid == 1 and h == 0:
+#         hybrid_classification.append('FN')
+#     if hybrid == 0 and h == 1:
+#         hybrid_classification.append('FP')
+# hp_train_pred['Hybrid_Classification'] = hybrid_classification
+# H_TP = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'TP'])
+# H_TN = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'TN'])
+# H_FP = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'FP'])
+# H_FN = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'FN'])
+# H_Hire_Percentage = H_TP / (H_TP + H_FN)
+#
+# # Adverse Impact Ratio
+# prot_hired = len(train_pred.loc[(train_pred['Hire'] == 1) & (train_pred['Protected_Group'] == 1)])
+# prot_not_hired = len(train_pred.loc[(train_pred['Hire'] == 0) & (train_pred['Protected_Group'] == 1)])
+# non_prot_hired = len(train_pred.loc[(train_pred['Hire'] == 1) & (train_pred['Protected_Group'] == 0)])
+# non_prot_not_hired = len(train_pred.loc[(train_pred['Hire'] == 0) & (train_pred['Protected_Group'] == 0)])
+# adverse_impact = (prot_hired / (prot_not_hired + prot_hired)) / (non_prot_hired / (non_prot_not_hired + non_prot_hired))
+#
+# # Final Score
+# score = ((HP_Hire_Percentage * 25) + (R_Hire_Percentage * 25) + (H_Hire_Percentage * 50)) - \
+#         (abs(1 - adverse_impact) * 100)
+# print("High Performers Hired: {0:.2f},"
+#       " Retained Hired: {1:.2f},"
+#       " Hybrid Hired: {2:.2f}"
+#       " Adverse Impact: {3:.2f},"
+#       " Score: {4:.2f}%".format(HP_Hire_Percentage,
+#                                 R_Hire_Percentage,
+#                                 H_Hire_Percentage,
+#                                 adverse_impact,
+#                                 score))
+#
+# ##################################
+# # Predict Using Model
+# ##################################
+#
+# print('--ML Model Prediction--', '\n')
+#
+# clf = Model
+# clf.fit(data_np, target_np)
+# results = pd.DataFrame(clf.predict_proba(test_data[header]))
+# final_predictions = pd.concat([test_labels, results], axis=1)
+# median = final_predictions[1].median()
+# final_predictions["Hire"] = final_predictions[1].apply(lambda x: hire(x, median))
 
 ##################################
 # Performance & Predictions to SQL
