@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.impute import KNNImputer
+import math
 
 pd.set_option('mode.chained_assignment', None)
 
@@ -37,7 +38,7 @@ def judgementScoring(sjItem, raw):
 x = pd.read_csv("C:/Users/Ian/Box Sync/Client/Baker Tilly/201901 ProdDev Initiative/"
                 "2 - Work in Process/POIS-0202-Moixa/Data/TrainingData.csv")
 
-ids = x[list(x.columns)[:8]]
+ids = x[list(x.columns)[:9]]
 SJTimes = x.filter(regex="SJ_Time.*", axis=1)
 scenarioTimes = x.filter(regex="Scenario.*._Time.*", axis=1)
 bioData = x.filter(regex="Bio.*", axis=1)
@@ -156,5 +157,15 @@ imputer = KNNImputer(n_neighbors=7)
 feature_vectors_filled = pd.DataFrame(imputer.fit_transform(feature_vectors), columns=list(feature_vectors.columns))
 feature_vectors_filled = pd.DataFrame(feature_vectors_filled, columns=list(feature_vectors.columns))
 final = ids.join(feature_vectors_filled)
+
+
+def hasPerformance(q):
+    if math.isnan(q):
+        return 0
+    else:
+        return 1
+
+
+final['hasPerf'] = final['Overall_Rating'].apply(lambda q: hasPerformance(q))
 
 final.to_csv('Data/scoredTrainingData.csv', index=False)
