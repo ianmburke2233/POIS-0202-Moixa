@@ -12,6 +12,7 @@ from operator import itemgetter
 import time
 import datetime
 import copy
+import re
 from urllib.parse import quote_plus
 import xlsxwriter
 
@@ -24,6 +25,7 @@ from imblearn.under_sampling import RandomUnderSampler, ClusterCentroids, NearMi
 
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import GridSearchCV, cross_validate, train_test_split
@@ -80,7 +82,7 @@ target_var = 'Retained'  # Name of the target column
 prot_var = 'Protected_Group'  # Name of the protected group column
 label = 'UNIQUE_ID'  # Name of the column providing row labels (e.g. Name, ID number, Client Number)
 
-model_type = 'RF'  # Type of model to be run (DT, RF, GB, ADA, MLP, SVC)
+model_type = 'LR'  # Type of model to be run (LR, DT, RF, GB, ADA, MLP, SVC)
 grid_search = 0  # Control Switch for hyperparameter grid search
 hp_grid = {'bootstrap': [True],
            'max_depth': [20],
@@ -173,6 +175,20 @@ def hire(x, median):
         return 0
 
 
+def filter_cols(df, regex):
+    rec = re.compile(regex)
+    cols = list(df.columns)
+    to_drop = [col for col in cols if rec.match(col)]
+    new_df = df.drop(to_drop, axis=1)
+    return new_df
+
+
+def filter_cols_multi(df, lst):
+    for regex in lst:
+        df = filter_cols(df, regex)
+    return df
+
+
 ##################################
 # Load Data
 ##################################
@@ -181,36 +197,19 @@ train_data = pd.read_csv('Data/{}.csv'.format(train_filename))
 test_data = pd.read_csv('Data/{}.csv'.format(test_filename))
 test_data = test_data.fillna(test_data.mean())
 labels = train_data[label]
-target = train_data[target_var]
+target = train_data[target_var].fillna(0)
 prot_group = train_data[prot_var]
 high_perf = train_data["High_Performer"].dropna()
 retained = train_data["Retained"]
 test_labels = test_data[label]
 
-exclusion_list = ['split', 'SJ_Time_1', 'SJ_Time_2', 'SJ_Time_3', 'SJ_Time_4', 'SJ_Time_5',
-                  'SJ_Time_6', 'SJ_Time_7', 'SJ_Time_8', 'SJ_Time_9', 'split', 'SJ_Most_1_score',
-                  'SJ_Most_2_score', 'SJ_Most_3_score', 'SJ_Most_4_score', 'SJ_Most_5_score',
-                  'SJ_Most_6_score', 'SJ_Most_7_score', 'SJ_Most_8_score', 'SJ_Most_9_score',
-                  'SJ_Least_1_score', 'SJ_Least_2_score', 'SJ_Least_3_score', 'SJ_Least_4_score', 'SJ_Least_5_score',
-                  'SJ_Least_6_score', 'SJ_Least_7_score', 'SJ_Least_8_score', 'SJ_Least_9_score', 'Scenario1_Time',
-                  'Scenario2_Time']
+exclusion_list = [r'.*_Time_.*', r'SJ_Most.*', r'SJ_Least.*', r'Scenario.*', r'hasPerf']
+df = filter_cols_multi(train_data, exclusion_list)
 
-# exclusion_list = ['split', 'SJ_Most_1_score', 'SJ_Most_2_score', 'SJ_Most_3_score', 'SJ_Most_4_score',
-#                   'SJ_Most_5_score', 'SJ_Most_6_score', 'SJ_Most_7_score', 'SJ_Most_8_score', 'SJ_Most_9_score',
-#                   'SJ_Least_1_score', 'SJ_Least_2_score', 'SJ_Least_3_score', 'SJ_Least_4_score', 'SJ_Least_5_score',
-#                   'SJ_Least_6_score', 'SJ_Least_7_score', 'SJ_Least_8_score', 'SJ_Least_9_score']
+features = df[list(df.columns)[9:]]
 
-# exclusion_list = ['split', 'SJ_Time_1', 'SJ_Time_2', 'SJ_Time_3', 'SJ_Time_4', 'SJ_Time_5', 'SJ_Time_6',
-#                   'SJ_Time_7', 'SJ_Time_8', 'SJ_Time_9', 'Scenario1_Time', 'Scenario2_Time']
-
-feature_set = list(train_data.columns)[first_feat_index:last_feat_index]
-
-for x1 in exclusion_list:
-    if x1 in feature_set:
-        feature_set.remove(x1)
-header = feature_set
-df = train_data[header]
-data_np = df.to_numpy()
+header = list(df.columns)[9:]
+data_np = features.to_numpy()
 target_np = target.to_numpy()
 
 ##################################
@@ -338,6 +337,8 @@ if grid_search == 0:
                                        min_weight_fraction_leaf=0.0, n_estimators=400,
                                        n_jobs=-1, oob_score=False, random_state=None,
                                        verbose=0, warm_start=False)
+    if model_type == 'LR':
+        Model = LogisticRegression(class_weight='balanced')
 
 ##################################
 # Feature Selection
@@ -532,6 +533,8 @@ if binning == 0 and cross_val == 1:
 clf.fit(data_train, target_train)
 feature_importance = pd.concat([pd.Series(header), pd.Series(clf.feature_importances_)], axis=1)
 feature_importance = feature_importance.sort_values(by=1, ascending=False)
+pred = clf.predict(data_train)
+print(metrics.confusion_matrix(target_train, pred, normalize='true'))
 
 # train_results = pd.DataFrame(clf.predict_proba(data_np))
 # train_pred = pd.concat([labels, high_perf, retained, prot_group, train_results], axis=1)
