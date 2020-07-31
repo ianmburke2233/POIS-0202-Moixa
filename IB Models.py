@@ -17,11 +17,11 @@ from urllib.parse import quote_plus
 import xlsxwriter
 
 import matplotlib.pyplot as plt
-import pypyodbc as odbc
+import pyodbc as odbc
 import sqlalchemy as sqla
 
-from imblearn.over_sampling import SMOTE, RandomOverSampler, ADASYN
-from imblearn.under_sampling import RandomUnderSampler, ClusterCentroids, NearMiss
+#from imblearn.over_sampling import SMOTE, RandomOverSampler, ADASYN
+#from imblearn.under_sampling import RandomUnderSampler, ClusterCentroids, NearMiss
 
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
@@ -205,6 +205,9 @@ test_labels = test_data[label]
 
 exclusion_list = [r'.*_Time_.*', r'SJ_Most.*', r'SJ_Least.*', r'Scenario.*', r'hasPerf']
 df = filter_cols_multi(train_data, exclusion_list)
+
+df['SJ_Sum'] = df.filter(regex='SJ_Total.*').sum(axis=1)
+df = filter_cols(df, r'SJ_Total.*')
 
 features = df[list(df.columns)[9:]]
 
@@ -531,10 +534,19 @@ if binning == 0 and cross_val == 1:
 ##################################
 
 clf.fit(data_train, target_train)
-feature_importance = pd.concat([pd.Series(header), pd.Series(clf.feature_importances_)], axis=1)
-feature_importance = feature_importance.sort_values(by=1, ascending=False)
+#feature_importance = pd.concat([pd.Series(header), pd.Series(clf.feature_importances_)], axis=1)
+#feature_importance = feature_importance.sort_values(by=1, ascending=False)
 pred = clf.predict(data_train)
 print(metrics.confusion_matrix(target_train, pred, normalize='true'))
+
+coef = pd.DataFrame({'feature': header, 'coef': clf.coef_[0], 'exp': np.exp(clf.coef_[0]),
+                    'abs_value': np.abs(clf.coef_[0])} )
+
+print(coef.sort_values(by='abs_value', ascending=False))
+
+
+pred = clf.predict(data_test)
+print(metrics.confusion_matrix(target_test, pred, normalize='true'))
 
 # train_results = pd.DataFrame(clf.predict_proba(data_np))
 # train_pred = pd.concat([labels, high_perf, retained, prot_group, train_results], axis=1)
