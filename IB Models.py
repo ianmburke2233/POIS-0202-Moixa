@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 import pyodbc as odbc
 import sqlalchemy as sqla
 
-#from imblearn.over_sampling import SMOTE, RandomOverSampler, ADASYN
-#from imblearn.under_sampling import RandomUnderSampler, ClusterCentroids, NearMiss
+from imblearn.over_sampling import SMOTE, RandomOverSampler, ADASYN
+from imblearn.under_sampling import RandomUnderSampler, ClusterCentroids, NearMiss
 
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
@@ -104,6 +104,7 @@ feat_select = 0  # Control Switch for Feature Selection
 fs_type = 4  # Feature Selection type (1=Stepwise Backwards Removal, 2=Wrapper Select, 3=Univariate Selection)
 lv_filter = 0  # Control switch for low variance filter on features
 k_cnt = 5  # Number of 'Top k' best ranked features to select, only applies for fs_types 1 and 3
+prot_only = 1
 
 
 ##################################
@@ -194,6 +195,8 @@ def filter_cols_multi(df, lst):
 ##################################
 
 train_data = pd.read_csv('Data/{}.csv'.format(train_filename))
+if prot_only == 1:
+    train_data = train_data[train_data['Protected_Group'] == 1]
 test_data = pd.read_csv('Data/{}.csv'.format(test_filename))
 test_data = test_data.fillna(test_data.mean())
 labels = train_data[label]
