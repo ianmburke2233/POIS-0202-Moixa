@@ -78,11 +78,11 @@ test_filename = 'DevelopmentData'  # Name of the file used to test the model
 first_feat_index = 9  # Column index of the first feature
 feat_start = 0
 last_feat_index = -1  # Column index of the last feature
-target_var = 'Retained'  # Name of the target column
+target_var = 'High_Performer'  # Name of the target column
 prot_var = 'Protected_Group'  # Name of the protected group column
 label = 'UNIQUE_ID'  # Name of the column providing row labels (e.g. Name, ID number, Client Number)
 
-model_type = 'LR'  # Type of model to be run (LR, DT, RF, GB, ADA, MLP, SVC)
+model_type = 'ADA'  # Type of model to be run (LR, DT, RF, GB, ADA, MLP, SVC)
 grid_search = 0  # Control Switch for hyperparameter grid search
 hp_grid = {'bootstrap': [True],
            'max_depth': [20],
@@ -93,9 +93,9 @@ hp_grid = {'bootstrap': [True],
 
 undersample = 0  # Control Switch for Down Sampling
 us_type = 3  # Under Sampling type (1:RuS, 2:Near-Miss, 3:Cluster Centroids)
-oversampling = 0  # Control Switch for Up Sampling
+oversampling = 1  # Control Switch for Up Sampling
 os_type = 1  # Over Sampling type (1:RoS, 2:SMOTE, 3:ADASYN)
-cross_val = 0  # Control Switch for CV
+cross_val = 1  # Control Switch for CV
 norm_target = 0  # Normalize target switch
 norm_features = 0  # Normalize features switch
 binning = 0  # Control Switch for Bin Target
@@ -104,7 +104,8 @@ feat_select = 0  # Control Switch for Feature Selection
 fs_type = 4  # Feature Selection type (1=Stepwise Backwards Removal, 2=Wrapper Select, 3=Univariate Selection)
 lv_filter = 0  # Control switch for low variance filter on features
 k_cnt = 5  # Number of 'Top k' best ranked features to select, only applies for fs_types 1 and 3
-prot_only = 1
+prot_only = 0
+non_prot_only = 0
 
 
 ##################################
@@ -194,19 +195,28 @@ def filter_cols_multi(df, lst):
 # Load Data
 ##################################
 
-train_data = pd.read_csv('Data/{}.csv'.format(train_filename))
-if prot_only == 1:
-    train_data = train_data[train_data['Protected_Group'] == 1]
+data = pd.read_csv('Data/{}.csv'.format(train_filename))
+if prot_only == 1 and non_prot_only == 1:
+    i = 1
+    while i == 111:
+        print('STOP')
+elif prot_only == 1:
+    train_data = data[data['Protected_Group'] == 1]
+elif non_prot_only == 1:
+    train_data = data[data['Protected_Group'] == 0]
+if target_var == 'High_Performer':
+    train_data = data[data['High_Performer'].notna()]
 test_data = pd.read_csv('Data/{}.csv'.format(test_filename))
 test_data = test_data.fillna(test_data.mean())
 labels = train_data[label]
-target = train_data[target_var].fillna(0)
+target = train_data[target_var].dropna()
 prot_group = train_data[prot_var]
-high_perf = train_data["High_Performer"].dropna()
+high_perf = train_data["High_Performer"]
 retained = train_data["Retained"]
 test_labels = test_data[label]
 
-exclusion_list = [r'.*_Time_.*', r'SJ_Most.*', r'SJ_Least.*', r'Scenario.*', r'hasPerf']
+# exclusion_list = [r'.*_Time_.*', r'SJ_Most.*', r'SJ_Least.*', r'Scenario.*', r'hasPerf']
+exclusion_list = [r'SJ_Most.*', r'SJ_Least.*']
 df = filter_cols_multi(train_data, exclusion_list)
 
 df['SJ_Sum'] = df.filter(regex='SJ_Total.*').sum(axis=1)
@@ -345,6 +355,8 @@ if grid_search == 0:
                                        verbose=0, warm_start=False)
     if model_type == 'LR':
         Model = LogisticRegression(class_weight='balanced')
+    if model_type == 'ADA':
+        Model = AdaBoostClassifier()
 
 ##################################
 # Feature Selection
@@ -537,163 +549,41 @@ if binning == 0 and cross_val == 1:
 ##################################
 
 clf.fit(data_train, target_train)
-#feature_importance = pd.concat([pd.Series(header), pd.Series(clf.feature_importances_)], axis=1)
-#feature_importance = feature_importance.sort_values(by=1, ascending=False)
 pred = clf.predict(data_train)
 print(metrics.confusion_matrix(target_train, pred, normalize='true'))
 
-coef = pd.DataFrame({'feature': header, 'coef': clf.coef_[0], 'exp': np.exp(clf.coef_[0]),
-                    'abs_value': np.abs(clf.coef_[0])} )
+if model_type == 'LR':
+    coef = pd.DataFrame({'feature': header, 'coef': clf.coef_[0], 'exp': np.exp(clf.coef_[0]),
+                        'abs_value': np.abs(clf.coef_[0])} )
 
-print(coef.sort_values(by='abs_value', ascending=False))
+    print(coef.sort_values(by='abs_value', ascending=False))
+
+    pred = clf.predict(data_test)
+    print(metrics.confusion_matrix(target_test, pred, normalize='true'))
+
+if model_type in ('RF', 'ADA'):
+    feature_importance = pd.concat([pd.Series(header), pd.Series(clf.feature_importances_)], axis=1)
+    feature_importance = feature_importance.sort_values(by=1, ascending=False)
 
 
-pred = clf.predict(data_test)
-print(metrics.confusion_matrix(target_test, pred, normalize='true'))
 
-# train_results = pd.DataFrame(clf.predict_proba(data_np))
-# train_pred = pd.concat([labels, high_perf, retained, prot_group, train_results], axis=1)
-# hybrids = []
-# for i2 in range(0, len(train_pred)):
-#     if train_pred.iloc[i2]['High_Performer'] == 1 and train_pred.iloc[i2]['Retained'] == 1:
-#         hybrids.append(1)
-#     else:
-#         hybrids.append(0)
-# train_pred.insert(3, 'Hybrid', hybrids)
-# median = train_pred[1].median()
-# train_pred["Hire"] = train_pred[1].apply(lambda x: hire(x, median))
-#
-# # Retained Classification
-# retained_classification = []
-# for i in range(0, len(train_pred)):
-#     retained = train_pred.iloc[i]["Retained"]
-#     h = train_pred.iloc[i]["Hire"]
-#     if retained == 1 and h == 1:
-#         retained_classification.append('TP')
-#     if retained == 0 and h == 0:
-#         retained_classification.append('TN')
-#     if retained == 1 and h == 0:
-#         retained_classification.append('FN')
-#     if retained == 0 and h == 1:
-#         retained_classification.append('FP')
-# train_pred['Retained_Classification'] = retained_classification
-# R_TP = len(train_pred[train_pred['Retained_Classification'] == 'TP'])
-# R_TN = len(train_pred[train_pred['Retained_Classification'] == 'TN'])
-# R_FP = len(train_pred[train_pred['Retained_Classification'] == 'FP'])
-# R_FN = len(train_pred[train_pred['Retained_Classification'] == 'FN'])
-# R_Hire_Percentage = R_TP / (R_TP + R_FN)
-#
-# # High Performance Classification
-# hp_train_pred = train_pred[train_pred['High_Performer'].notnull()]
-# high_performance_classification = []
-# for i in range(0, len(hp_train_pred)):
-#     high_performer = hp_train_pred.iloc[i]["High_Performer"]
-#     h = hp_train_pred.iloc[i]["Hire"]
-#     if high_performer == 1 and h == 1:
-#         high_performance_classification.append('TP')
-#     if high_performer == 0 and h == 0:
-#         high_performance_classification.append('TN')
-#     if high_performer == 1 and h == 0:
-#         high_performance_classification.append('FN')
-#     if high_performer == 0 and h == 1:
-#         high_performance_classification.append('FP')
-# hp_train_pred['High_Perf_Classification'] = high_performance_classification
-# HP_TP = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'TP'])
-# HP_TN = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'TN'])
-# HP_FP = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'FP'])
-# HP_FN = len(hp_train_pred[hp_train_pred['High_Perf_Classification'] == 'FN'])
-# HP_Hire_Percentage = HP_TP / (HP_TP + HP_FN)
-#
-# # Hybrid Classification
-# hybrid_classification = []
-# for i in range(0, len(hp_train_pred)):
-#     high_performer = hp_train_pred.iloc[i]["High_Performer"]
-#     retained = hp_train_pred.iloc[i]["Retained"]
-#     if high_performer == 1 and retained == 1:
-#         hybrid = 1
-#     else:
-#         hybrid = 0
-#     h = hp_train_pred.iloc[i]["Hire"]
-#     if hybrid == 1 and h == 1:
-#         hybrid_classification.append('TP')
-#     if hybrid == 0 and h == 0:
-#         hybrid_classification.append('TN')
-#     if hybrid == 1 and h == 0:
-#         hybrid_classification.append('FN')
-#     if hybrid == 0 and h == 1:
-#         hybrid_classification.append('FP')
-# hp_train_pred['Hybrid_Classification'] = hybrid_classification
-# H_TP = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'TP'])
-# H_TN = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'TN'])
-# H_FP = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'FP'])
-# H_FN = len(hp_train_pred[hp_train_pred['Hybrid_Classification'] == 'FN'])
-# H_Hire_Percentage = H_TP / (H_TP + H_FN)
-#
-# # Adverse Impact Ratio
-# prot_hired = len(train_pred.loc[(train_pred['Hire'] == 1) & (train_pred['Protected_Group'] == 1)])
-# prot_not_hired = len(train_pred.loc[(train_pred['Hire'] == 0) & (train_pred['Protected_Group'] == 1)])
-# non_prot_hired = len(train_pred.loc[(train_pred['Hire'] == 1) & (train_pred['Protected_Group'] == 0)])
-# non_prot_not_hired = len(train_pred.loc[(train_pred['Hire'] == 0) & (train_pred['Protected_Group'] == 0)])
-# adverse_impact = (prot_hired / (prot_not_hired + prot_hired)) / (non_prot_hired / (non_prot_not_hired + non_prot_hired))
-#
-# # Final Score
-# score = ((HP_Hire_Percentage * 25) + (R_Hire_Percentage * 25) + (H_Hire_Percentage * 50)) - \
-#         (abs(1 - adverse_impact) * 100)
-# print("High Performers Hired: {0:.2f},"
-#       " Retained Hired: {1:.2f},"
-#       " Hybrid Hired: {2:.2f}"
-#       " Adverse Impact: {3:.2f},"
-#       " Score: {4:.2f}%".format(HP_Hire_Percentage,
-#                                 R_Hire_Percentage,
-#                                 H_Hire_Percentage,
-#                                 adverse_impact,
-#                                 score))
-#
-# ##################################
-# # Predict Using Model
-# ##################################
-#
-# print('--ML Model Prediction--', '\n')
-#
-# clf = Model
-# clf.fit(data_np, target_np)
-# results = pd.DataFrame(clf.predict_proba(test_data[header]))
-# final_predictions = pd.concat([test_labels, results], axis=1)
-# median = final_predictions[1].median()
-# final_predictions["Hire"] = final_predictions[1].apply(lambda x: hire(x, median))
+nullHP = data
 
-##################################
-# Performance & Predictions to SQL
-##################################
+nullHP['SJ_Sum'] = nullHP.filter(regex='SJ_Total.*').sum(axis=1)
 
-# # Model Configuration
-# mc = {'modelID': modelid,
-#       'modelType': model_type,
-#       'modelTarget': target_var,
-#       'undersampleFlag': undersample,
-#       'undersampleType': us_type,
-#       'oversampleFlag': oversampling,
-#       'oversampleType': os_type,
-#       'lvFilterFlag': lv_filter,
-#       'featureSelect': feat_select,
-#       'fsType': fs_type}
-# model_config = pd.DataFrame(mc, index=[0])
-# model_config.to_sql('modelConfiguration', engine, if_exists='append', index=False, schema='ax')
-#
-# # Model Score
-# fs = {'modelID': modelid,
-#       'Percentage_of_true_top_performers_hired': HP_Hire_Percentage,
-#       'Percentage_of_true_retained_hired': R_Hire_Percentage,
-#       'Percentage_of_true_retained_top_performers_hired': H_Hire_Percentage,
-#       'Adverse_impact_ratio': adverse_impact,
-#       'Final_score': score}
-# final_scores = pd.DataFrame(fs, index=[0])
-# final_scores.to_sql('modelPerformance', engine, if_exists='append', index=False, schema='ax')
-#
-# # Model Predictions
-# final_predictions.insert(0, "modelID", modelid)
-# final_predictions.to_sql('modelPredictions', engine, if_exists='append', index=False, schema='ax')
-#
-# # Classification Details
-# hp_train_pred.to_sql('highPerformerClassifications', engine, if_exists='append', index=False, schema='ax')
-# train_pred.to_sql('retentionClassifications', engine, if_exists='append', index=False, schema='ax')
+for_pred = nullHP[header]
+
+pred_high_perf = clf.predict(for_pred)
+
+data['pred_high_perf'] = pred_high_perf
+
+data['Filled_High_Performer'] = data['pred_high_perf']
+data['Filled_High_Performer'][data['High_Performer'].notna()] = data['High_Performer'][data['High_Performer'].notna()]
+
+data['Filled_High_Performer'].count()
+
+out = data
+
+out['target'] = data['Filled_High_Performer'] + data['Retained'] + 1
+
+out.to_csv('Data/multiclass.csv')
