@@ -25,7 +25,7 @@ from imblearn.under_sampling import RandomUnderSampler, ClusterCentroids, NearMi
 
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, ElasticNet
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import GridSearchCV, cross_validate, train_test_split
@@ -82,7 +82,7 @@ target_var = 'High_Performer'  # Name of the target column
 prot_var = 'Protected_Group'  # Name of the protected group column
 label = 'UNIQUE_ID'  # Name of the column providing row labels (e.g. Name, ID number, Client Number)
 
-model_type = 'ADA'  # Type of model to be run (LR, DT, RF, GB, ADA, MLP, SVC)
+model_type = 'ADA'  # Type of model to be run (LR, EN, DT, RF, GB, ADA, MLP, SVC)
 grid_search = 0  # Control Switch for hyperparameter grid search
 hp_grid = {'bootstrap': [True],
            'max_depth': [20],
@@ -355,6 +355,8 @@ if grid_search == 0:
                                        verbose=0, warm_start=False)
     if model_type == 'LR':
         Model = LogisticRegression(class_weight='balanced')
+    if model_type == 'EN':
+        Model = ElasticNet()
     if model_type == 'ADA':
         Model = AdaBoostClassifier()
 
@@ -525,8 +527,8 @@ if binning == 0 and cross_val == 0:
 
     scores_ACC = clf.score(data_test, target_test)
     print('{} Acc:'.format(model_type), scores_ACC)
-    scores_AUC = metrics.roc_auc_score(target_test, clf.predict_proba(data_test)[:, 1])
-    print('{} AUC:'.format(model_type), scores_AUC)
+    # scores_AUC = metrics.roc_auc_score(target_test, clf.predict_proba(data_test)[:, 1])
+    # print('{} AUC:'.format(model_type), scores_AUC)
 
 # Cross-Validation Classifiers
 if binning == 0 and cross_val == 1:
@@ -549,8 +551,8 @@ if binning == 0 and cross_val == 1:
 ##################################
 
 clf.fit(data_train, target_train)
-pred = clf.predict(data_train)
-print(metrics.confusion_matrix(target_train, pred, normalize='true'))
+pred = clf.predict(data_test)
+print(metrics.confusion_matrix(target_test, pred, normalize='true'))
 
 if model_type == 'LR':
     coef = pd.DataFrame({'feature': header, 'coef': clf.coef_[0], 'exp': np.exp(clf.coef_[0]),
@@ -565,8 +567,6 @@ if model_type in ('RF', 'ADA'):
     feature_importance = pd.concat([pd.Series(header), pd.Series(clf.feature_importances_)], axis=1)
     feature_importance = feature_importance.sort_values(by=1, ascending=False)
 
-
-
 nullHP = data
 
 nullHP['SJ_Sum'] = nullHP.filter(regex='SJ_Total.*').sum(axis=1)
@@ -579,8 +579,6 @@ data['pred_high_perf'] = pred_high_perf
 
 data['Filled_High_Performer'] = data['pred_high_perf']
 data['Filled_High_Performer'][data['High_Performer'].notna()] = data['High_Performer'][data['High_Performer'].notna()]
-
-data['Filled_High_Performer'].count()
 
 out = data
 
