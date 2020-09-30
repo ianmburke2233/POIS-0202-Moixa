@@ -74,7 +74,7 @@ warnings.filterwarnings("ignore", category=sklearn.exceptions.ConvergenceWarning
 modelid = datetime.datetime.fromtimestamp(datetime.datetime.now().timestamp())  # Unique ID for a given model run
 
 train_filename = 'scoredTrainingData'  # Name of the file used to train the model
-test_filename = 'DevelopmentData'  # Name of the file used to test the model
+test_filename = 'scoredDevelopmentData'  # Name of the file used to test the model
 first_feat_index = 9  # Column index of the first feature
 feat_start = 0
 last_feat_index = -1  # Column index of the last feature
@@ -216,7 +216,7 @@ retained = train_data["Retained"]
 test_labels = test_data[label]
 
 # exclusion_list = [r'.*_Time_.*', r'SJ_Most.*', r'SJ_Least.*', r'Scenario.*', r'hasPerf']
-exclusion_list = [r'SJ_Most.*', r'SJ_Least.*']
+exclusion_list = [r'SJ_Most.*', r'SJ_Least.*', r'Scenario.*.score', r'SJ_Time.*']
 df = filter_cols_multi(train_data, exclusion_list)
 
 df['SJ_Sum'] = df.filter(regex='SJ_Total.*').sum(axis=1)
@@ -550,9 +550,11 @@ if binning == 0 and cross_val == 1:
 # SIOP Testing Formula
 ##################################
 
+clf = Model
 clf.fit(data_train, target_train)
 pred = clf.predict(data_test)
 print(metrics.confusion_matrix(target_test, pred, normalize='true'))
+print(metrics.confusion_matrix(target_test, pred))
 
 if model_type == 'LR':
     coef = pd.DataFrame({'feature': header, 'coef': clf.coef_[0], 'exp': np.exp(clf.coef_[0]),
@@ -561,27 +563,37 @@ if model_type == 'LR':
     print(coef.sort_values(by='abs_value', ascending=False))
 
     pred = clf.predict(data_test)
-    print(metrics.confusion_matrix(target_test, pred, normalize='true'))
+    # print(metrics.confusion_matrix(target_test, pred, normalize='true'))
 
 if model_type in ('RF', 'ADA'):
     feature_importance = pd.concat([pd.Series(header), pd.Series(clf.feature_importances_)], axis=1)
     feature_importance = feature_importance.sort_values(by=1, ascending=False)
 
 nullHP = data
+dev_nullHP = pd.read_csv('Data/{}.csv'.format(test_filename))
 
 nullHP['SJ_Sum'] = nullHP.filter(regex='SJ_Total.*').sum(axis=1)
+dev_nullHP['SJ_Sum'] = dev_nullHP.filter(regex='SJ_Total.*').sum(axis=1)
 
 for_pred = nullHP[header]
+dev_for_pred = dev_nullHP[header]
 
 pred_high_perf = clf.predict(for_pred)
+rounded_pred_high_perf = pred_high_perf.round()
 
-data['pred_high_perf'] = pred_high_perf
+data['pred_high_perf'] = rounded_pred_high_perf
 
 data['Filled_High_Performer'] = data['pred_high_perf']
 data['Filled_High_Performer'][data['High_Performer'].notna()] = data['High_Performer'][data['High_Performer'].notna()]
 
+
 out = data
+out2 = dev_nullHP
+
 
 out['target'] = data['Filled_High_Performer'] + data['Retained'] + 1
 
-out.to_csv('Data/multiclass.csv')
+out.to_csv('Data/multiclass.csv', index=False)
+out2.to_csv('Data/multiclassDev.csv', index=False)
+
+

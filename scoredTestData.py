@@ -36,9 +36,9 @@ def judgementScoring(sjItem, raw):
 
 
 x = pd.read_csv("C:/Users/Ian/Box Sync/Client/Baker Tilly/201901 ProdDev Initiative/"
-                "2 - Work in Process/POIS-0202-Moixa/Data/TrainingData.csv")
+                "2 - Work in Process/POIS-0202-Moixa/Data/DevelopmentData.csv")
 
-ids = x[list(x.columns)[:9]]
+ids = pd.DataFrame(x[list(x.columns)[0]])
 SJTimes = x.filter(regex="SJ_Time.*", axis=1)
 scenarioTimes = x.filter(regex="Scenario.*._Time.*", axis=1)
 bioData = x.filter(regex="Bio.*", axis=1)
@@ -170,6 +170,7 @@ def hasPerformance(q):
         return 1
 
 
+final['Overall_Rating'] = np.nan
 final['hasPerf'] = final['Overall_Rating'].apply(lambda q: hasPerformance(q))
 
-final.to_csv('Data/scoredTrainingData.csv', index=False)
+final.to_csv('Data/scoredDevelopmentData.csv', index=False)
