@@ -82,7 +82,7 @@ target_var = 'High_Performer'  # Name of the target column
 prot_var = 'Protected_Group'  # Name of the protected group column
 label = 'UNIQUE_ID'  # Name of the column providing row labels (e.g. Name, ID number, Client Number)
 
-model_type = 'EN'  # Type of model to be run (LR, EN, DT, RF, GB, ADA, MLP, SVC)
+model_type = 'ADA'  # Type of model to be run (LR, EN, DT, RF, GB, ADA, MLP, SVC)
 grid_search = 0  # Control Switch for hyperparameter grid search
 hp_grid = {'bootstrap': [True],
            'max_depth': [20],
@@ -584,6 +584,7 @@ dev_for_pred = dev_nullHP[header]
 
 pred_high_perf = clf.predict(for_pred)
 rounded_pred_high_perf = pred_high_perf.round()
+rounded_pred_high_perf[rounded_pred_high_perf < 0] = 0
 
 data['pred_high_perf'] = rounded_pred_high_perf
 
