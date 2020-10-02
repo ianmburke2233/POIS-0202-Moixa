@@ -196,7 +196,6 @@ def filter_cols_multi(df, lst):
 ##################################
 
 data = pd.read_csv('Data/{}.csv'.format(train_filename))
-data = data[(data['High_Performer'] == 1) | (data['High_Performer'] == 0)]
 if prot_only == 1 and non_prot_only == 1:
     i = 1
     while i == 111:
