@@ -82,7 +82,7 @@ target_var = 'High_Performer'  # Name of the target column
 prot_var = 'Protected_Group'  # Name of the protected group column
 label = 'UNIQUE_ID'  # Name of the column providing row labels (e.g. Name, ID number, Client Number)
 
-model_type = 'ADA'  # Type of model to be run (LR, EN, DT, RF, GB, ADA, MLP, SVC)
+model_type = 'EN'  # Type of model to be run (LR, EN, DT, RF, GB, ADA, MLP, SVC)
 grid_search = 0  # Control Switch for hyperparameter grid search
 hp_grid = {'bootstrap': [True],
            'max_depth': [20],
@@ -95,7 +95,7 @@ undersample = 0  # Control Switch for Down Sampling
 us_type = 3  # Under Sampling type (1:RuS, 2:Near-Miss, 3:Cluster Centroids)
 oversampling = 1  # Control Switch for Up Sampling
 os_type = 1  # Over Sampling type (1:RoS, 2:SMOTE, 3:ADASYN)
-cross_val = 1  # Control Switch for CV
+cross_val = 0  # Control Switch for CV
 norm_target = 0  # Normalize target switch
 norm_features = 0  # Normalize features switch
 binning = 0  # Control Switch for Bin Target
@@ -196,6 +196,7 @@ def filter_cols_multi(df, lst):
 ##################################
 
 data = pd.read_csv('Data/{}.csv'.format(train_filename))
+data = data[(data['High_Performer'] == 1) | (data['High_Performer'] == 0)]
 if prot_only == 1 and non_prot_only == 1:
     i = 1
     while i == 111:
@@ -518,7 +519,7 @@ if feat_select == 1:
 print('--ML Model Output--', '\n')
 
 # Test/Train split
-data_train, data_test, target_train, target_test = train_test_split(data_np, target_np, test_size=0.35)
+data_train, data_test, target_train, target_test = train_test_split(data_np, target_np, test_size=0.30)
 
 # Classifiers
 if binning == 0 and cross_val == 0:
@@ -553,6 +554,10 @@ if binning == 0 and cross_val == 1:
 clf = Model
 clf.fit(data_train, target_train)
 pred = clf.predict(data_test)
+if model_type == 'EN':
+    pred = pred.round()
+    pred[pred<0] = 0
+print(metrics.accuracy_score(target_test, pred))
 print(metrics.confusion_matrix(target_test, pred, normalize='true'))
 print(metrics.confusion_matrix(target_test, pred))
 
@@ -563,7 +568,7 @@ if model_type == 'LR':
     print(coef.sort_values(by='abs_value', ascending=False))
 
     pred = clf.predict(data_test)
-    # print(metrics.confusion_matrix(target_test, pred, normalize='true'))
+    print(metrics.confusion_matrix(target_test, pred, normalize='true'))
 
 if model_type in ('RF', 'ADA'):
     feature_importance = pd.concat([pd.Series(header), pd.Series(clf.feature_importances_)], axis=1)
