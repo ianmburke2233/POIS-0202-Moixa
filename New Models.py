@@ -7,12 +7,12 @@ from sklearn.model_selection import cross_validate, train_test_split
 
 fname = 'Data/multiclass.csv'
 dev_fname = 'Data/multiclassDev.csv'
-outname = '2020-10-23 GB (HP Only, High Performer)'
-model = RandomForestClassifier(n_estimators=200, max_depth=50, min_samples_leaf=2, min_samples_split=2)
+outname = '2020-10-30 ADA (Full Pop, Combo)'
+# model = RandomForestClassifier(n_estimators=200, max_depth=50, min_samples_leaf=2, min_samples_split=2)
 # model = GradientBoostingClassifier()
-# model = AdaBoostClassifier()
+model = AdaBoostClassifier()
 population = 1  # 1 - Full Population, 2 - Protected Group Only, 3 - Non-Protected Group Only
-target = 2  # 1 - Hybrid Target, 2 - High Performer, 3 - Retained, 4 - Real High Performer
+target = 2  # 1 - Hybrid Target, 2 - High Performer, 3 - Retained, 4 - Real High Performer, 5 - HP & Retained
 weighted = 1
 print_results = 1
 
@@ -37,6 +37,9 @@ if target == 1:
 if target == 2 or target == 4:
     target_np = df['Filled_High_Performer'].to_numpy()
 if target == 3:
+    target_np = df['Retained'].to_numpy()
+if target == 5:
+    df['combo'] = ((df['Retained'] + df['Filled_High_Performer'])/2.0).apply(np.floor)
     target_np = df['Retained'].to_numpy()
 
 

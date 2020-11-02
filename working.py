@@ -9,7 +9,7 @@ def hire(mid, x):
     return decision
 
 
-fname = '2020-10-23 hp-ADA ret-GB Combined (ADA)'
+fname = '2020-10-30 hp-RF ret-GB Combined (ADA)'
 protected_splits = 0
 print_results = 1
 
@@ -41,7 +41,7 @@ if protected_splits == 1:
 
     out = protected[['UNIQUE_ID', 'Hire']].append(non_protected[['UNIQUE_ID', 'Hire']])
 else:
-    hp = pd.read_csv('Selections/2020-10-23 ADA (Full Pop, High Performer).csv')
+    hp = pd.read_csv('Selections/2020-10-02 Random Forest (Full Pop, High Performer).csv')
     retained = pd.read_csv('Selections/2020-10-23 GB (Full Pop, Retained).csv')
     hybrid = hp.merge(retained, left_on='UNIQUE_ID', right_on='UNIQUE_ID', suffixes={'_hp', '_r'})
     hybrid['product'] = hybrid['Class 2 Prob_r'] * hybrid['Class 2 Prob_hp']
