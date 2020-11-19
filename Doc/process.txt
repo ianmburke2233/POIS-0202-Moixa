@@ -1,10 +1,17 @@
-Imputation
+Missing Data Imputation
     The current imputation strategy is to use KNN imputation with 7 neighbors
     Other methods tested:
         Mean Imputation
         Fill With Zeros
         Omit
-        GLM Imputation
+
+High Performer Imputation
+    The current method uses ADA Boosted Decision Tree classification with the following feature types excluded
+        SJMostScores, SJLeastScores, SJTimes, ScenarioScores
+    Other methods tested:
+        GLM Net
+        Gradient Boosted Decision Trees
+        Random Forest
 
 Feature Generation / scoring
     Scenarios scored based on their distance away from the most common answer (0 is best score, linear scoring)
@@ -19,6 +26,8 @@ Feature Dictionary
     SJTime - Time to complete situational judgement tasks
     SJMostScore - Score for an individual on the answer they provided as "most" in a situational judgement task
     SJLeastScore - Score for an individual on the answer they provided as "least" in a situational judgement task
+    SJTotalScores - Total score for an individual in a situational judgement task
+    SJSum - Sum of all total situational judgement scores
     ScenarioTime - Time to complete scenario tasks
     ScenarioScore - Score for an individual on a scenario task
     PScaleScore - Value for a personality scale for a given individual
