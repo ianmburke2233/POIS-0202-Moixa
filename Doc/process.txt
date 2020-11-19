@@ -1,0 +1,25 @@
+Imputation
+    The current imputation strategy is to use KNN imputation with 7 neighbors
+    Other methods tested:
+        Mean Imputation
+        Fill With Zeros
+        Omit
+        GLM Imputation
+
+Feature Generation / scoring
+    Scenarios scored based on their distance away from the most common answer (0 is best score, linear scoring)
+    Situational judgement scored as 1 if best answer is given, -1 if worse answer is given and 0 otherwise
+    Biology use the values found in the base data
+    Personality scales area created in two steps
+        Reverse the orientation of any negative sub-scales
+        Combine sub-scales into a single score for each personality scale
+    Time features use the values found in the base data
+
+Feature Dictionary
+    SJTime - Time to complete situational judgement tasks
+    SJMostScore - Score for an individual on the answer they provided as "most" in a situational judgement task
+    SJLeastScore - Score for an individual on the answer they provided as "least" in a situational judgement task
+    ScenarioTime - Time to complete scenario tasks
+    ScenarioScore - Score for an individual on a scenario task
+    PScaleScore - Value for a personality scale for a given individual
+    BioData - Value for a biology question for a given individual
