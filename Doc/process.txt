@@ -1,9 +1,18 @@
+Backlog / Outstanding Tasks
+    Test new imputation approaches
+    Create new features
+    Test feature scaling approaches
+
 Missing Data Imputation
     The current imputation strategy is to use KNN imputation with 7 neighbors
     Other methods tested:
         Mean Imputation
+        Median Imputation
         Fill With Zeros
         Omit
+    Methods to try:
+        MICE
+        Miss-Forest
 
 High Performer Imputation
     The current method uses ADA Boosted Decision Tree classification with the following feature types excluded
@@ -14,13 +23,27 @@ High Performer Imputation
         Random Forest
 
 Feature Generation / scoring
-    Scenarios scored based on their distance away from the most common answer (0 is best score, linear scoring)
-    Situational judgement scored as 1 if best answer is given, -1 if worse answer is given and 0 otherwise
-    Biology use the values found in the base data
-    Personality scales area created in two steps
-        Reverse the orientation of any negative sub-scales
-        Combine sub-scales into a single score for each personality scale
-    Time features use the values found in the base data
+    Current Features
+        Scenarios scored based on their distance away from the most common answer (0 is best score, linear scoring)
+            Could approach this in a exponential fashion instead
+        Situational judgement scored as 1 if best answer is given, -1 if worse answer is given and 0 otherwise
+            Normalize response by probability and score based on the probability of the response
+            Look at the popularity of the answer in just the "Hired" dataset to determine the correct response
+        Biology use the values found in the base data
+        Personality scales area created in two steps
+            Reverse the orientation of any negative sub-scales
+            Combine sub-scales into a single score for each personality scale
+        Time features use the values found in the base data
+    Features to Test
+        Non-linear (Quadratic?) relationship between performance and retention
+            Full pop
+            Protected vs Non-Protected
+            Test using situational judgement data / scenario data
+        Use dimensionality reduction on the personality data (start with 13 scale scores) (down to 5)
+        Log transform time?
+
+Modeling Approaches
+    IB To Update
 
 Feature Dictionary
     SJTime - Time to complete situational judgement tasks
