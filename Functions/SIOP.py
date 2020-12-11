@@ -4,6 +4,75 @@ from sklearn.impute import KNNImputer
 import math
 import time
 from sklearn.decomposition import PCA
+from pathlib2 import Path
+
+file_names_dict = {'raw_data_train':'TrainingData.csv',
+                    'raw_data_test': 'DevelopmentData.csv',
+                    'impute_train': 'ImpTrain.csv'}
+
+RAW_DATA_PATH = Path('../Data')
+RESULT_DATA_PATH = Path('.')
+
+
+class ScenarioScorer:
+
+    SCENARIOS = ['Scenario1_1', 'Scenario1_2', 'Scenario1_3', 'Scenario1_4', 'Scenario1_5', 'Scenario1_6',
+                 'Scenario1_7', 'Scenario1_8',
+                 'Scenario2_1', 'Scenario2_2', 'Scenario2_3', 'Scenario2_4', 'Scenario2_5', 'Scenario2_6',
+                 'Scenario2_7', 'Scenario2_8']
+
+    def __init__(self, score_fn, label):
+        self.label = label
+        self.score_fn = score_fn
+
+    def score(self, file_dict, update=False):
+        # if update=False, then if file already exists, report and return.
+        for type in file_dict.keys():
+            infile = file_dict[type]
+            data = pd.read_csv(RAW_DATA_PATH / infile)
+            scored_scenarios = [self.score_helper(data, col_name) for col_name in self.SCENARIOS]
+            scored_df = pd.concat(scored_scenarios, axis=1)
+            scored_df.to_csv(RESULT_DATA_PATH / f'Phase1/scenario_scores_{self.label}_{type}')
+
+    def score_helper(self, data, scenario):
+        df = pd.DataFrame(data[scenario])
+        mode = int(df.mode().iloc[0][0])
+        df['{}_score'.format(scenario)] = df[scenario].apply(lambda x: self.score_fn(x, mode))
+        return pd.DataFrame(df['{}_score'.format(scenario)])
+
+    @staticmethod
+    def factory(method):
+        if method == 'linear':
+            fn = lambda x, mode: abs(x - mode)
+        elif method == 'quadratic':
+            fn = lambda x, mode: abs(x - mode) * abs(x - mode)
+        elif method == 'exponential':
+            fn = lambda x, mode: math.exp((abs(x - mode)))
+        elif method == 'binary':
+            fn = lambda x, mode: 1 if x == mode else 0
+        return ScenarioScorer(fn, method)
+
+obj = ScenarioScorer.factory('linear')
+obj.score({'train':'TrainingData.csv', 'dev':'DevelopmentData.csv'})
+
+class Experiment:
+
+    def __init__(self, function_dict, exp_path):
+        if 'missing_data_fn' in function_dict:
+            self.missing_data_fn = function_dict['missing_data_fn']
+        if 'feature_gen_fn' in function_dict:
+            self.feature_gen_fn = function_dict['feature_gen_fn']
+        if 'hp_impute_fn' in function_dict:
+            self.feature_gen_fn = function_dict['hp_impute_fn']
+        if 'model_fn' in function_dict:
+            self.feature_gen_fn = function_dict['model_fn']
+
+
+    def generate_features(self):
+
+
+    def HP_impute(self):
+
 
 
 pd.set_option('mode.chained_assignment', None)
@@ -226,6 +295,46 @@ def feature_generation(infile, imp_method, scoring_methods):
                                              scoring_methods['SJ'], scoring_methods['P']))
     final.to_csv('Functions/Phase 1/{}'.format(timestamp), index=False)
 
+
+# Multiple imputed files should be the default
+# https://scikit-learn.org/stable/auto_examples/impute/plot_iterative_imputer_variants_comparison.html
+class MissingDataImputer:
+
+    def __init__(self, label, impute_fn, no_impute_cols):
+
+
+    def impute(self, file_dict):
+        for type in file_dict.keys():
+
+            for each imputation:
+            scored_df.to_csv(RESULT_DATA_PATH / f'Phase1/md_imputed_{self.label}_{type}/imp_file_{k}')
+
+    @staticmethod
+    def factory(method, params):
+        if method="knn":
+            params['neighbors']
+        if method="mice":
+            params['count']
+ #       >> > imp = mice.MICEData(data)
+ #       >> > j = 0
+ #       >> > for data in imp:
+ #           ...
+ #           imp.data.to_csv('data%02d.csv' % j)
+
+        if method="missforest":
+            pass
+
+        return MissingDataImputer(fn, method)
+
+class HPImputer:
+
+class Imputer:
+
+    imp_list = [imp1, imp2]
+
+    def impute(self):
+        for imp in imp_lst:
+            imp.impute()
 
 def imputation():
     pass
