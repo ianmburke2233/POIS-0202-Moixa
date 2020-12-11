@@ -15,8 +15,8 @@ def feature_generation(infile, imp_method, scoring_methods):
     imputer = imp_method
     imp_ids = data[list(data.columns)[:8]]
     imp_data = data[list(data.columns)[9:-1]]
-    feature_vectors_filled = pd.DataFrame(imputer.fit_transform(imp_data), columns=list(imp_data.columns)[9:-1])
-    feature_vectors_filled = pd.DataFrame(feature_vectors_filled, columns=list(imp_data.columns)[9:-1])
+    feature_vectors_filled = pd.DataFrame(imputer.fit_transform(imp_data), columns=list(imp_data.columns))
+    feature_vectors_filled = pd.DataFrame(feature_vectors_filled, columns=list(imp_data.columns))
     data = imp_ids.join(feature_vectors_filled)
     SJTimes = data.filter(regex="SJ_Time.*", axis=1)
     scenarioTimes = data.filter(regex="Scenario.*._Time.*", axis=1)
@@ -193,7 +193,7 @@ def feature_generation(infile, imp_method, scoring_methods):
                               scale12['average_S12'],
                               scale13['average_S13']], axis=1)
 
-    if scoring_methods['personality'] == 'PCA':
+    if scoring_methods['P'] == 'PCA':
         pca = PCA(n_components=5)
         pca.fit(data)
         print(pca.explained_variance_)
@@ -227,7 +227,7 @@ def feature_generation(infile, imp_method, scoring_methods):
     final.to_csv('Functions/Phase 1/{}'.format(timestamp), index=False)
 
 
-def imputation():
+def hp_imputation():
     pass
 
 
