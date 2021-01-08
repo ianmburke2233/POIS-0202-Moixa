@@ -576,9 +576,6 @@ if model_type in ('RF', 'ADA'):
 nullHP = data
 dev_nullHP = pd.read_csv('Data/{}.csv'.format(test_filename))
 
-nullHP['SJ_Sum'] = nullHP.filter(regex='SJ_Total.*').sum(axis=1)
-dev_nullHP['SJ_Sum'] = dev_nullHP.filter(regex='SJ_Total.*').sum(axis=1)
-
 for_pred = nullHP[header]
 dev_for_pred = dev_nullHP[header]
 

@@ -1,10 +1,15 @@
 import pandas as pd
 import numpy as np
 from sklearn.impute import KNNImputer
+from missingpy import MissForest
+from statsmodels.imputation import mice
+from sklearn.preprocessing import scale
+from imblearn.over_sampling import SMOTE, RandomOverSampler, ADASYN
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 import math
 import time
 from sklearn.decomposition import PCA
-from pathlib2 import Path
+from pathlib import Path
 
 file_names_dict = {'raw_data_train':'TrainingData.csv',
                     'raw_data_test': 'DevelopmentData.csv',
@@ -12,6 +17,26 @@ file_names_dict = {'raw_data_train':'TrainingData.csv',
 
 RAW_DATA_PATH = Path('../Data')
 RESULT_DATA_PATH = Path('.')
+
+
+def col_filter(col_dict, dataframe):
+    filter_df = dataframe[col_dict['imputation']]
+    ignore_df = dataframe[col_dict['ignore']]
+    return filter_df, ignore_df
+
+class Metadata:
+
+    def __init__(self, path_dict, label_dict):
+        self.path_dict = path_dict
+        self.label_dict = label_dict
+
+    def get_path(self, label, phase):
+        # find file name in phase metatdata pertaining to a given label
+        pass
+
+    def is_computed(self, label, phase):
+        path = self.get_path(label, phase)
+        return path.exists()
 
 
 class ScenarioScorer:
@@ -54,26 +79,6 @@ class ScenarioScorer:
 
 obj = ScenarioScorer.factory('linear')
 obj.score({'train':'TrainingData.csv', 'dev':'DevelopmentData.csv'})
-
-class Experiment:
-
-    def __init__(self, function_dict, exp_path):
-        if 'missing_data_fn' in function_dict:
-            self.missing_data_fn = function_dict['missing_data_fn']
-        if 'feature_gen_fn' in function_dict:
-            self.feature_gen_fn = function_dict['feature_gen_fn']
-        if 'hp_impute_fn' in function_dict:
-            self.feature_gen_fn = function_dict['hp_impute_fn']
-        if 'model_fn' in function_dict:
-            self.feature_gen_fn = function_dict['model_fn']
-
-
-    def generate_features(self):
-
-
-    def HP_impute(self):
-
-
 
 pd.set_option('mode.chained_assignment', None)
 
@@ -278,6 +283,7 @@ def feature_generation(infile, imp_method, scoring_methods):
         final['SJ_Total_{}_score'.format(i)] = final['SJ_Most_{}_score'.format(i)] + final[
             'SJ_Least_{}_score'.format(i)]
         i += 1
+    final['SJ_Sum'] = final.filter(regex='SJ_Total.*').sum(axis=1)
 
     def hasPerformance(q):
         if math.isnan(q):
@@ -296,59 +302,179 @@ def feature_generation(infile, imp_method, scoring_methods):
     final.to_csv('Functions/Phase 1/{}'.format(timestamp), index=False)
 
 
-
 # Multiple imputed files should be the default
 # https://scikit-learn.org/stable/auto_examples/impute/plot_iterative_imputer_variants_comparison.html
+
 class MissingDataImputer:
 
-    def __init__(self, label, impute_fn, no_impute_cols):
-
+    def __init__(self, label, impute_fn, col_dict):
+        self.label = label
+        self.impute_fn = impute_fn
+        self.col_dict = col_dict
+        self.folder_path = RESULT_DATA_PATH / f'md_imputed/md_{self.label}'
+        try:
+            self.folder_path.mkdir()
+        except FileExistsError:
+            val = input(f'Replace Directory {self.folder_path} (Y/N): ')
+            if val.lower() == 'y':
+                self.folder_path.mkdir(exist_ok=True)
+            else:
+                raise
 
     def impute(self, file_dict):
         for type in file_dict.keys():
+            df = pd.read_csv(file_dict[type])
+            filtered_df, ignored_df = col_filter(self.col_dict, df)
+            imputed_df = self.impute_fn(filtered_df)
+            final_df = pd.concat([ignored_df, imputed_df])
+            final_df.to_csv(self.folder_path/f'{type}_imp_file_{0}.csv')
+            ## TO DO: Add code to save metadata to file
 
-            for each imputation:
-            scored_df.to_csv(RESULT_DATA_PATH / f'Phase1/md_imputed_{self.label}_{type}/imp_file_{k}')
+            # for each imputation :
 
     @staticmethod
-    def factory(method, params):
-        if method="knn":
-            params['neighbors']
-        if method="mice":
-            params['count']
- #       >> > imp = mice.MICEData(data)
- #       >> > j = 0
- #       >> > for data in imp:
- #           ...
- #           imp.data.to_csv('data%02d.csv' % j)
+    def factory(method, label, cols, **kwargs):
+        if method =="knn":
+            imputer = KNNImputer(**kwargs)
+            fn = lambda df: imputer.fit_transform(df)
+        elif method == "missforest":
+            imputer = MissForest(**kwargs)
+            fn = lambda df: imputer.fit_transform(df)
+        # elif method == "mice":
+            # Need to get proper design pattern for this
+            # imputer = mice.MICEData(**kwargs)
+            # fn = lambda df: imputer.fit_transform(df)
+        return MissingDataImputer(label, fn, cols)
 
-        if method="missforest":
-            pass
-
-        return MissingDataImputer(fn, method)
 
 class HPImputer:
 
-class Imputer:
+    def __init__(self, label, fname, impute_fn, col_dict):
+        self.label = label
+        self.folder_path = RESULT_DATA_PATH / f'hp_imputed/hp_{self.label}'
+        self.data = pd.read_csv(RAW_DATA_PATH / fname)
+        self.impute_fn = impute_fn
+        self.col_dict = col_dict
+        self.features = None
+        try:
+            self.folder_path.mkdir()
+        except FileExistsError:
+            val = input(f'Replace Directory {self.folder_path} (Y/N): ')
+            if val.lower() == 'y':
+                self.folder_path.mkdir(exist_ok=True)
+            else:
+                raise
 
-    imp_list = [imp1, imp2]
-
-    def impute(self):
-        for imp in imp_lst:
-            imp.impute()
-
-def imputation():
+    def filter_data(self, col_filter, row_filter):
+        self.features = self.data[col_filter]
+        self.features = self.features.loc[row_filter]
+        self.target = self.features['High Performer']
+        self.features = self.features[9:]
 
 
+    def preprocess(self, normalize, oversample):
+        if normalize:
+            self.features = scale(self.features)
+        if oversample.lower() == 'ros':
+            ros = RandomOverSampler()
+            self.features, self.target = ros.fit_resample(self.features, self.target)
+        if oversample.lower() == 'smote':
+            smote = SMOTE()
+            self.features, self.target = smote.fit_resample(self.features, self.target)
+        if oversample.lower() == 'adasyn':
+            adasyn = ADASYN()
+            self.features, self.target = adasyn.fit_resample(self.features, self.target)
 
-def modeling():
-    pass
+    def model(self):
+        filtered_df, ignored_df = col_filter(self.col_dict, self.data)
+        fitted_model = self.impute_fn(filtered_df)
+        predictions = fitted_model.predict(filtered_df)
+        self.data = self.data.append(predictions, axis=1)
+        self.data.to_csv(self.folder_path/'hp_imp_file.csv')
+
+        ## TO DO: Add code to save metadata to file
+
+        # for each imputation :
+
+    @staticmethod
+    def factory(method, filename, cols, label, **kwargs):
+        if method == 'RF':
+            clf = RandomForestClassifier(**kwargs)
+            fn = lambda df, target: clf.fit(df, target)
+        if method == 'GB':
+            clf = GradientBoostingClassifier(**kwargs)
+            fn = lambda df, target: clf.fit(df, target)
+        if method == 'ADA':
+            clf = AdaBoostClassifier(**kwargs)
+            fn = lambda df, target: clf.fit(df, target)
+        if method == 'SVM':
+        if method == 'LR':
+        if method == 'EN':
+        if method == 'MLP':
+        return HPImputer(label, filename, fn, cols)
 
 
-# def wrapper():
-#     feature_generation()
-#     imputation()
-#     modeling()
+class modeler:
 
-feature_generation('../Data/TrainingData.csv', KNNImputer(n_neighbors=7),
-                   {'SS': 'quadratic', 'SJ': 'weights_full', 'P': 'PCA'})
+    def __init__(self, label, fname, model_fn, col_dict):
+        self.label = label
+        self.folder_path = RESULT_DATA_PATH / f'hp_imputed/hp_{self.label}'
+        self.data = pd.read_csv(RAW_DATA_PATH / fname)
+        self.model_fn = model_fn
+        self.col_dict = col_dict
+        self.features = None
+        try:
+            self.folder_path.mkdir()
+        except FileExistsError:
+            val = input(f'Replace Directory {self.folder_path} (Y/N): ')
+            if val.lower() == 'y':
+                self.folder_path.mkdir(exist_ok=True)
+            else:
+                raise
+
+    def model(self):
+        filtered_df, ignored_df = col_filter(self.col_dict, self.data)
+        fitted_model = self.model_fn(filtered_df)
+        predictions = fitted_model.predict(filtered_df)
+        self.data = self.data.append(predictions, axis=1)
+        self.data.to_csv(self.folder_path/'hp_imp_file.csv')
+
+        ## TO DO: Add code to save metadata to file
+
+        # for each imputation :
+
+    @staticmethod
+    def factory(method, filename, cols, label, **kwargs):
+        if method == 'RF':
+            clf = RandomForestClassifier(**kwargs)
+            fn = lambda df, target: clf.fit(df, target)
+        if method == 'GB':
+            clf = GradientBoostingClassifier(**kwargs)
+            fn = lambda df, target: clf.fit(df, target)
+        if method == 'ADA':
+            clf = AdaBoostClassifier(**kwargs)
+            fn = lambda df, target: clf.fit(df, target)
+        if method == 'SVM':
+        if method == 'LR':
+        if method == 'EN':
+        if method == 'MLP':
+        return HPImputer(label, filename, fn, cols)
+
+
+class Experiment:
+
+    def __init__(self, function_dict, exp_path):
+        if 'missing_data_fn' in function_dict:
+            self.missing_data_fn = function_dict['missing_data_fn']
+        if 'feature_gen_fn' in function_dict:
+            self.feature_gen_fn = function_dict['feature_gen_fn']
+        if 'hp_impute_fn' in function_dict:
+            self.feature_gen_fn = function_dict['hp_impute_fn']
+        if 'model_fn' in function_dict:
+            self.feature_gen_fn = function_dict['model_fn']
+
+
+    def generate_features(self):
+
+
+    def HP_impute(self):
