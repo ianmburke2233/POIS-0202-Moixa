@@ -68,7 +68,7 @@ scores = cross_validate(estimator=clf, X=data_train, y=target_train, scoring=sco
 
 scores_Acc = scores['test_Accuracy']
 print("SVM Acc: %0.2f (+/- %0.2f)" % (scores_Acc.mean(), scores_Acc.std() * 2))
-# scores_AUC = scores['test_roc_auc']  # Only works with binary classes, not multiclass
+# scores_AUC = scores['test_roc_auc']
 # print("AUC: %0.2f (+/- %0.2f)" % (scores_AUC.mean(), scores_AUC.std() * 2))
 print("CV Runtime:", time.time() - start_ts, '\n')
 

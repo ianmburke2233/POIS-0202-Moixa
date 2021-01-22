@@ -6,6 +6,8 @@ from statsmodels.imputation import mice
 from sklearn.preprocessing import scale
 from imblearn.over_sampling import SMOTE, RandomOverSampler, ADASYN
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
+from sklearn.model_selection import cross_validate, train_test_split
+from sklearn import metrics
 import math
 import time
 from sklearn.decomposition import PCA
@@ -16,7 +18,7 @@ file_names_dict = {'raw_data_train':'TrainingData.csv',
                     'impute_train': 'ImpTrain.csv'}
 
 RAW_DATA_PATH = Path('../Data')
-RESULT_DATA_PATH = Path('.')
+BASE_EXPERIMENT_PATH = Path('.')
 
 
 def col_filter(col_dict, dataframe):
@@ -46,8 +48,8 @@ class ScenarioScorer:
                  'Scenario2_1', 'Scenario2_2', 'Scenario2_3', 'Scenario2_4', 'Scenario2_5', 'Scenario2_6',
                  'Scenario2_7', 'Scenario2_8']
 
-    def __init__(self, score_fn, label):
-        self.label = label
+    def __init__(self, score_fn, method):
+        self.method = method
         self.score_fn = score_fn
 
     def score(self, file_dict, update=False):
@@ -57,7 +59,8 @@ class ScenarioScorer:
             data = pd.read_csv(RAW_DATA_PATH / infile)
             scored_scenarios = [self.score_helper(data, col_name) for col_name in self.SCENARIOS]
             scored_df = pd.concat(scored_scenarios, axis=1)
-            scored_df.to_csv(RESULT_DATA_PATH / f'Phase1/scenario_scores_{self.label}_{type}')
+            scored_df.to_csv(BASE_EXPERIMENT_PATH / f'feature_gen/scenario_scores/{self.method}/{type}.csv',
+                             index=False)
 
     def score_helper(self, data, scenario):
         df = pd.DataFrame(data[scenario])
@@ -311,7 +314,7 @@ class MissingDataImputer:
         self.label = label
         self.impute_fn = impute_fn
         self.col_dict = col_dict
-        self.folder_path = RESULT_DATA_PATH / f'md_imputed/md_{self.label}'
+        self.folder_path = BASE_EXPERIMENT_PATH / f'md_impute/md_{self.label}'
         try:
             self.folder_path.mkdir()
         except FileExistsError:
@@ -327,7 +330,7 @@ class MissingDataImputer:
             filtered_df, ignored_df = col_filter(self.col_dict, df)
             imputed_df = self.impute_fn(filtered_df)
             final_df = pd.concat([ignored_df, imputed_df])
-            final_df.to_csv(self.folder_path/f'{type}_imp_file_{0}.csv')
+            final_df.to_csv(self.folder_path/f'{type}_md_imp_file_{0}.csv', index=False)
             ## TO DO: Add code to save metadata to file
 
             # for each imputation :
@@ -349,13 +352,15 @@ class MissingDataImputer:
 
 class HPImputer:
 
-    def __init__(self, label, fname, impute_fn, col_dict):
+    def __init__(self, label, fname, impute_fn, col_dict, normalize, oversample):
         self.label = label
-        self.folder_path = RESULT_DATA_PATH / f'hp_imputed/hp_{self.label}'
+        self.folder_path = BASE_EXPERIMENT_PATH / f'hp_impute/hp_{self.label}'
         self.data = pd.read_csv(RAW_DATA_PATH / fname)
         self.impute_fn = impute_fn
         self.col_dict = col_dict
         self.features = None
+        self.normalize = normalize
+        self.oversample = oversample
         try:
             self.folder_path.mkdir()
         except FileExistsError:
@@ -364,13 +369,6 @@ class HPImputer:
                 self.folder_path.mkdir(exist_ok=True)
             else:
                 raise
-
-    def filter_data(self, col_filter, row_filter):
-        self.features = self.data[col_filter]
-        self.features = self.features.loc[row_filter]
-        self.target = self.features['High Performer']
-        self.features = self.features[9:]
-
 
     def preprocess(self, normalize, oversample):
         if normalize:
@@ -386,18 +384,19 @@ class HPImputer:
             self.features, self.target = adasyn.fit_resample(self.features, self.target)
 
     def model(self):
-        filtered_df, ignored_df = col_filter(self.col_dict, self.data)
-        fitted_model = self.impute_fn(filtered_df)
-        predictions = fitted_model.predict(filtered_df)
+        self.features, ignored_df = col_filter(self.col_dict, self.data)
+        self.preprocess(self.normalize, self.oversample)
+        fitted_model = self.impute_fn(self.features, self.features['High Performer'])
+        predictions = fitted_model.predict(self.features)
         self.data = self.data.append(predictions, axis=1)
-        self.data.to_csv(self.folder_path/'hp_imp_file.csv')
+        self.data.to_csv(self.folder_path/'hp_imp_file.csv', index=False)
 
         ## TO DO: Add code to save metadata to file
 
         # for each imputation :
 
     @staticmethod
-    def factory(method, filename, cols, label, **kwargs):
+    def factory(method, filename, cols, label, normalize, oversample, **kwargs):
         if method == 'RF':
             clf = RandomForestClassifier(**kwargs)
             fn = lambda df, target: clf.fit(df, target)
@@ -411,14 +410,14 @@ class HPImputer:
         if method == 'LR':
         if method == 'EN':
         if method == 'MLP':
-        return HPImputer(label, filename, fn, cols)
+        return HPImputer(label, filename, fn, cols, normalize, oversample)
 
 
-class modeler:
+class Modeler:
 
     def __init__(self, label, fname, model_fn, col_dict):
         self.label = label
-        self.folder_path = RESULT_DATA_PATH / f'hp_imputed/hp_{self.label}'
+        self.folder_path = BASE_EXPERIMENT_PATH / f'model/{self.label}'
         self.data = pd.read_csv(RAW_DATA_PATH / fname)
         self.model_fn = model_fn
         self.col_dict = col_dict
@@ -432,16 +431,30 @@ class modeler:
             else:
                 raise
 
-    def model(self):
+    def model_eval(self, df, target, test_size):
+        scorers = {'Accuracy': 'accuracy', 'ROC': 'roc_auc'}
+        data_train, data_test, target_train, target_test = train_test_split(df, target, test_size=test_size)
+        clf = self.model_fn(df)
+        scores = cross_validate(estimator=clf, X=data_train, y=target_train, scoring=scorers, cv=5)
+        scores_Acc = scores['test_Accuracy']
+        scores_AUC = scores['ROC']
+        clf.fit(data_train, target_train)
+        pred = clf.predict(data_test)
+        cm = metrics.confusion_matrix(target_test, pred, normalize='true')
+        out = pd.DataFrame({'metric': ['ACC', 'AUC', 'TP', 'TN', 'FP', 'FN'],
+                            'mean': [scores_Acc.mean(), scores_AUC.mean(), cm[1][1], cm[0][0], cm[0][1], cm[1][0]],
+                            'std': [scores_Acc.std(), scores_AUC.std(), 'NA', 'NA', 'NA', 'NA']})
+        out.to_csv(self.folder_path/'performance.csv', index=False)
+
+    def model_predict(self):
         filtered_df, ignored_df = col_filter(self.col_dict, self.data)
         fitted_model = self.model_fn(filtered_df)
         predictions = fitted_model.predict(filtered_df)
         self.data = self.data.append(predictions, axis=1)
-        self.data.to_csv(self.folder_path/'hp_imp_file.csv')
+        self.data.to_csv(self.folder_path/'prediction.csv', index=False)
 
         ## TO DO: Add code to save metadata to file
 
-        # for each imputation :
 
     @staticmethod
     def factory(method, filename, cols, label, **kwargs):
@@ -458,7 +471,7 @@ class modeler:
         if method == 'LR':
         if method == 'EN':
         if method == 'MLP':
-        return HPImputer(label, filename, fn, cols)
+        return Modeler(label, filename, fn, cols)
 
 
 class Experiment:
