@@ -26,9 +26,8 @@ def scorer(x, best, worst):
 
 def judgementScoring(sjItem, raw):
     df = raw[sjItem]
-    counts = pd.DataFrame(df.value_counts())
+    counts = pd.DataFrame(df.value_counts(normalize=True))
     df = pd.DataFrame(df)
-    counts = counts.reset_index()
     best = counts.iloc[0][0]
     worst = counts.iloc[-1][0]
     df['{}_score'.format(sjItem)] = df[sjItem].apply(lambda x: scorer(x, best, worst))

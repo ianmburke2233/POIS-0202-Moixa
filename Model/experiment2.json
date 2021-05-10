@@ -1,0 +1,16 @@
+{
+  "Label": "Test1",
+  "File_Dict": {"raw_data_train":"TrainingData.csv", "raw_data_test": "DevelopmentData.csv"},
+  "FeatureGeneration": {"ScenarioScoring": {"Method":  "binary"},
+                        "JudgementScoring": {"Method":  "weights_full"},
+                        "PersonalityScoring": {"Method": {"pca": "False", "n-neighbors":  "nan"}},
+                        "BioGrouping": {"Method":  "None"}},
+  "MDImpute": {"Method": "knn", "Cols": {"Impute": [], "Ignore": []}, "Args": {"n_neighbors": 5}},
+  "HPImpute": {"Method": "Str", "Cols": {"Impute": [], "Ignore": []}, "Args": {},
+               "Normalize":  "True", "Oversample": "adasyn"},
+  "Model1": {"Method": "Str", "Target":  "HP_Retained", "TestSize": "int", "Cols": {"Features": []},
+    "Args": {}},
+  "Model2": {"Method": "Str", "Target":  "Retained", "TestSize": "int", "Cols": {"Features": []},
+    "Args": {}},
+  "Model3": {"Method": "Str", "Target":  "Protected", "TestSize": "int", "Cols": {"Features": []},
+    "Args": {}}}
